@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1008" viewBox="0 0 720 1008">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1013"/>
+      <stop offset="0.5" stop-color="#172126"/>
+      <stop offset="1" stop-color="#090d0f"/>
+    </linearGradient>
+    <radialGradient id="core">
+      <stop offset="0" stop-color="#6dcc91" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#6dcc91" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#8cb6a0" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="720" height="1008" rx="46" fill="url(#bg)"/>
+  <rect x="16" y="16" width="688" height="976" rx="36" fill="none" stroke="#d8ac55" stroke-width="5"/>
+  <rect x="29" y="29" width="662" height="950" rx="28" fill="none" stroke="#6dcc91" stroke-opacity="0.4" stroke-width="2"/>
+  <rect x="34" y="34" width="652" height="940" rx="25" fill="url(#grid)"/>
+  <ellipse cx="360" cy="510" rx="280" ry="350" fill="url(#core)"/>
+  <path d="M48 154H672M48 862H672" stroke="#d8ac55" stroke-opacity="0.55" stroke-width="2"/>
+  <path d="M66 116h70l22 24h404l22-24h70" fill="none" stroke="#6dcc91" stroke-opacity="0.55" stroke-width="3"/>
+  <g fill="#d8ac55" filter="url(#glow)">
+    <path d="M360 50l16 18-16 18-16-18z"/>
+    <circle cx="58" cy="505" r="6"/><circle cx="662" cy="505" r="6"/>
+  </g>
+  <g font-family="Arial,Helvetica,sans-serif" text-anchor="middle">
+    <text x="360" y="108" fill="#f3e7c7" font-size="28" font-weight="700" letter-spacing="5">COMMANDER DECK FORGE</text>
+    <text x="360" y="926" fill="#7fae94" font-size="17" font-weight="700" letter-spacing="4">IN-GAME IMPORT CONSOLE</text>
+  </g>
+  <g fill="#10171a" stroke="#3c5159" stroke-width="2">
+    <rect x="65" y="245" width="280" height="140" rx="16"/>
+    <rect x="375" y="245" width="280" height="140" rx="16"/>
+    <rect x="65" y="435" width="280" height="140" rx="16"/>
+    <rect x="375" y="435" width="280" height="140" rx="16"/>
+  </g>
+  <rect x="70" y="650" width="580" height="90" rx="14" fill="#090d0f" stroke="#314047" stroke-width="2"/>
+</svg>

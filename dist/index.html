@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TTS Deck Forge</title>
+  <meta name="description" content="Resolve, preflight, and export Commander decks as validated Tabletop Simulator Saved Objects.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23101417'/%3E%3Cpath d='M18 13h28v38H18z' fill='none' stroke='%23d6ae59' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='8' fill='none' stroke='%236cbe8c' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .import-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 20px 14px}.source-action{padding:7px 10px;font-size:.76rem;background:#172025}.source-action::before{margin-right:6px}.source-action:nth-child(1)::before{content:"▣"}.source-action:nth-child(2)::before{content:"✦"}.source-action:nth-child(3)::before{content:"▰"}.source-action.danger::before{content:"×"}.source-action.danger{color:#ff8c84;border-color:#52302e;background:#241717}.file-action{position:relative;overflow:hidden;cursor:pointer}.file-action input{position:absolute;inset:0;opacity:0;cursor:pointer}.input-panel>textarea{min-height:285px}
+    @media(max-width:650px){.import-toolbar{margin-inline:14px}.source-action{flex:1}.source-action.danger{flex:0 0 auto}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true"><span></span></div>
+    <div>
+      <h1><em>TTS</em> DECK FORGE</h1>
+      <p>Resolve · inspect · validate · export</p>
+    </div>
+    <div class="top-count" id="topCount"><strong>0</strong><span>physical cards</span></div>
+  </header>
+
+  <main class="workspace">
+    <section class="control-column" aria-label="Deck input and configuration">
+      <div class="panel input-panel">
+        <div class="panel-head">
+          <div><span class="eyebrow">01 / SOURCE</span><h2>Decklist</h2></div>
+        </div>
+        <div class="import-toolbar" aria-label="Decklist import options">
+          <button class="button source-action" id="pasteBtn">Paste</button>
+          <button class="button source-action" id="demoBtn">Sample</button>
+          <label class="button source-action file-action">Load file<input id="deckFile" type="file" accept=".txt,.csv,.json,.dek,.cod,text/plain,text/csv,application/json"></label>
+          <button class="button source-action danger" id="clearBtn">Clear</button>
+        </div>
+        <p class="source-note">Paste a decklist or a public Moxfield or Archidekt deck URL here.</p>
+        <textarea id="deckInput" spellcheck="false" aria-label="Decklist or deck URL" placeholder="Commander&#10;1x Omnath, Locus of Mana (CMM) 680&#10;&#10;Mainboard&#10;1x Sol Ring (CMM) 703"></textarea>
+        <div class="input-footer">
+          <span id="parseSummary">Paste a list to begin.</span>
+          <button class="button primary" id="resolveBtn"><span class="btn-dot"></span>Resolve deck</button>
+        </div>
+      </div>
+
+      <div class="panel config-panel">
+        <div class="panel-head"><div><span class="eyebrow">02 / CONFIGURE</span><h2>Export settings</h2></div></div>
+        <label class="field"><span>Deck name</span><input id="deckName" value="Commander Deck" maxlength="120"></label>
+        <label class="field"><span>Format</span><select id="deckFormat"><option value="commander">Commander</option><option value="oathbreaker">Oathbreaker (60 cards)</option><option value="oathbreaker100">Oathbreaker homebrew (100 cards, 40 life)</option><option value="constructed">Other constructed (60+ cards)</option><option value="standard">Standard</option><option value="pioneer">Pioneer</option><option value="modern">Modern</option><option value="legacy">Legacy</option><option value="vintage">Vintage</option><option value="pauper">Pauper</option></select><small class="format-note" id="formatNote">Named formats check card legality using current Scryfall data. Other constructed checks deck size and copies only.</small></label>
+        <div class="field-grid">
+          <label class="field"><span>Image provider</span><select id="provider"><option value="alpowell" selected>MTG Image Cache (default)</option><option value="universal">Universal CDN proxy</option><option value="tts">TTS / Scryfall proxy</option><option value="direct">Direct Scryfall</option></select></label>
+          <label class="field"><span>Fallback lookup</span><select id="fallback"><option value="ask">Ask before substituting</option><option value="auto">Use name fallback</option><option value="never">Exact printing only</option></select></label>
+        </div>
+        <label class="field"><span>Card back</span><select id="backMode"><option value="standard">Standard Magic card back</option><option value="custom">Custom image URL</option></select></label>
+        <label class="field" id="customBackField" hidden><span>Custom card back URL</span><input id="backUrl" type="url" value="https://steamusercontent-a.akamaihd.net/ugc/1647720103762682461/35EF6E87970E2A5D6581E7D96A99F8A575B7A15F/" placeholder="https://example.com/my-card-back.jpg"></label>
+        <div class="back-row">
+          <img id="backPreview" alt="Card back preview">
+          <div><strong id="backStatus">Not tested</strong><small id="backHelp">Validated independently from the Saved Object thumbnail.</small></div>
+        </div>
+        <label class="field"><span>Manual tokens / helpers <small>one per line</small></span><textarea id="manualTokens" rows="3" placeholder="Treasure Token&#10;The Monarch"></textarea></label>
+        <div class="checks">
+          <label><input type="checkbox" id="includeSide"> Export sideboard</label>
+          <label><input type="checkbox" id="includeMaybe"> Include maybeboard</label>
+        </div>
+        <div class="folder-setting">
+          <div><strong>TTS folder</strong><small id="folderStatus" role="status">No folder selected</small></div>
+          <button class="button secondary" id="selectFolderBtn" type="button">Choose folder</button>
+        </div>
+        <div class="config-actions">
+          <button class="button secondary" id="retestBtn">Retest images</button>
+          <button class="button secondary" id="freshBtn">Force fresh image URLs</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="results-column" aria-label="Preflight results and card previews">
+      <div class="panel preflight-panel">
+        <div class="panel-head">
+          <div><span class="eyebrow">03 / PREFLIGHT</span><h2>Validation dashboard</h2></div>
+          <div class="validation-pill idle" id="validationPill"><i></i><span>Not validated</span></div>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="progress-wrap"><div class="progress-track"><div id="progressBar"></div></div><span id="progressText">Waiting for a decklist</span></div>
+      </div>
+
+      <div class="panel browser-panel">
+        <div class="tabs" role="tablist">
+          <button role="tab" class="active" data-tab="deck">Deck <b id="deckTabCount">0</b></button>
+          <button role="tab" data-tab="commander">Commander <b id="commanderTabCount">0</b></button>
+          <button role="tab" data-tab="signature" hidden>Signature Spell <b id="signatureTabCount">0</b></button>
+          <button role="tab" data-tab="sideboard">Sideboard <b id="sideboardTabCount">0</b></button>
+          <button role="tab" data-tab="tokens">Tokens <b id="tokenTabCount">0</b></button>
+          <button role="tab" data-tab="stats">▥ Deck Stats</button>
+          <button role="tab" data-tab="errors">Errors <b id="errorTabCount">0</b></button>
+          <button role="tab" data-tab="log">Log</button>
+        </div>
+        <div id="cardGrid" class="card-grid"><div class="empty-state"><div class="empty-glyph">⌁</div><strong>No cards resolved</strong><span>Paste a decklist or load the Omnath demo.</span></div></div>
+        <div id="statsView" class="stats-view" hidden></div>
+        <div id="errorsView" class="errors-view" hidden></div>
+        <div id="logView" class="log-view" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="export-dock">
+    <div class="export-state"><span class="status-light"></span><div><strong id="exportState">Export locked</strong><small id="exportReason">Resolve and validate a deck first.</small></div></div>
+    <div class="export-actions">
+      <a class="button secondary" href="/downloads/Commander_TTS_Deck_Forge_Importer.json" download>Get in-game importer</a>
+      <button class="button secondary" id="jsonViewBtn" disabled>View generated JSON</button>
+      <button class="button secondary" id="jsonBtn" disabled>Download JSON</button>
+      <button class="button secondary" id="pngBtn" disabled>Download PNG</button>
+      <label class="button secondary upload-btn">Custom thumbnail<input type="file" id="thumbUpload" accept="image/png,image/jpeg,image/webp"></label>
+      <button class="button folder" id="folderBtn" disabled>Send to TTS folder</button>
+      <button class="button export" id="zipBtn" disabled>Download ZIP</button>
+    </div>
+  </footer>
+
+  <dialog id="detailDialog"><button class="dialog-close" aria-label="Close">×</button><div id="detailContent"></div></dialog>
+  <dialog id="jsonDialog" class="json-dialog"><button class="dialog-close" aria-label="Close">×</button><div class="json-head"><div><span class="eyebrow">GENERATED OUTPUT</span><h2>Saved Object JSON</h2></div><div><button class="button secondary small" id="copyJson">Copy</button><button class="button secondary small" id="downloadJsonModal">Download</button></div></div><pre id="jsonCode"></pre></dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
