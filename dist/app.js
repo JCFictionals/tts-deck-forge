@@ -101,7 +101,7 @@ const STANDARD_CARD_BACK='https://steamusercontent-a.akamaihd.net/ugc/1647720103
 function esc(v='') { return String(v).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function normalizeName(v='') { return v.toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim(); }
 function displayName(card) { return card?.name || card?.card_faces?.map(f=>f.name).join(' // ') || 'Unknown card'; }
-function imgSource(card, face=0) { return card?.card_faces?.[face]?.image_uris?.normal || card?.image_uris?.normal || ''; }
+function imgSource(card, face=0) { return card?.card_faces?.[face]?.image_uris?.normal || (face===0 ? card?.image_uris?.normal : '') || ''; }
 function addLog(message, type='info') { state.logs.push({time:new Date().toLocaleTimeString(),message,type}); if (state.activeTab==='log') renderLog(); }
 function toast(message) { els.toast.textContent=message; els.toast.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>els.toast.classList.remove('show'),2600); }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}

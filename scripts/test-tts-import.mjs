@@ -81,6 +81,9 @@ if (!payload.cardPlan.tokens.some((spec) => spec.nickname.startsWith(meldResult.
 const modalSpec = payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Mila, Crafty Companion"));
 if (!modalSpec?.backFaceUrl || !modalSpec.backNickname.startsWith("Lukka, Wayward Bonder")) throw new Error("Modal double-faced state is missing.");
 if (!modalSpec.encoderRebuild || !modalSpec.backDescription.endsWith("[b]5[/b]")) throw new Error("Reverse-face planeswalker loyalty rebuild metadata is missing.");
+if (payload.cardPlan.commanders[0].backFaceUrl || payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Forest"))?.backFaceUrl || payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Gisela"))?.backFaceUrl) {
+  throw new Error("Single-faced cards were given a flip-to-back state.");
+}
 const commanderFace = payload.cardPlan.commanders[0].faceUrl || "";
 if (!commanderFace.startsWith("https://wsrv.nl/?url=")) throw new Error("TTS-compatible image proxy is missing.");
 if (JSON.stringify(payload).length > 60000) throw new Error("Compact card plan unexpectedly expanded.");
@@ -96,6 +99,14 @@ if (!dropboxPayload.ok || dropboxPayload.cardPlan.cardBackUrl !== dropboxLink.re
   throw new Error("Dropbox card back URL must retain the share link with dl=1.");
 }
 const servedApp = await (await worker.fetch(new Request("https://local/app.js"))).text();
+const imgSourceCode = servedApp.match(/function imgSource\([^\n]+/)?.[0];
+const facesForCode = servedApp.match(/function facesFor\(entry\)\{[\s\S]*?\n\}/)?.[0];
+if (!imgSourceCode || !facesForCode) throw new Error("Browser card face helpers are missing.");
+const browserFaces = Function("providerUrl", `${imgSourceCode}\n${facesForCode}\nreturn facesFor;`)((url) => url);
+const splitCard = { image_uris: forest.image_uris, card_faces: [{ name: "First Half" }, { name: "Second Half" }] };
+if (browserFaces({ card: forest }).length !== 1 || browserFaces({ card: splitCard }).length !== 1 || browserFaces({ card: modalWalker }).length !== 2) {
+  throw new Error("Browser export assigned a back-face state to a card without a back image, or lost a real double face.");
+}
 if (!servedApp.includes("function fixDropboxCardBackLink") || servedApp.includes("url.hostname='dl.dropboxusercontent.com'")) {
   throw new Error("The served app still contains stale Dropbox card back handling.");
 }

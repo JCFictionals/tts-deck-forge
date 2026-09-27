@@ -91,7 +91,7 @@ async function ttsResolveEntries(entries) {
 }
 
 function ttsImageSource(card, face) {
-  return card?.card_faces?.[face]?.image_uris?.normal || card?.image_uris?.normal || "";
+  return card?.card_faces?.[face]?.image_uris?.normal || (face === 0 ? card?.image_uris?.normal : "") || "";
 }
 
 function ttsImageUrl(source) {
