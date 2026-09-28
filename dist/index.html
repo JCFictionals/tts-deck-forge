@@ -50,8 +50,16 @@
           <label class="field"><span>Image provider</span><select id="provider"><option value="alpowell" selected>MTG Image Cache (default)</option><option value="universal">Universal CDN proxy</option><option value="tts">TTS / Scryfall proxy</option><option value="direct">Direct Scryfall</option></select></label>
           <label class="field"><span>Fallback lookup</span><select id="fallback"><option value="ask">Ask before substituting</option><option value="auto">Use name fallback</option><option value="never">Exact printing only</option></select></label>
         </div>
-        <label class="field"><span>Card back</span><select id="backMode"><option value="standard">Standard Magic card back</option><option value="custom">Custom image URL</option></select></label>
+        <label class="field"><span>Card back</span><select id="backMode"><option value="standard">Standard Magic card back</option><option value="custom">Custom image URL</option><option value="upload">Upload local image</option></select></label>
         <label class="field" id="customBackField" hidden><span>Custom card back URL</span><input id="backUrl" type="url" value="https://steamusercontent-a.akamaihd.net/ugc/1647720103762682461/35EF6E87970E2A5D6581E7D96A99F8A575B7A15F/" placeholder="https://example.com/my-card-back.jpg"></label>
+        <div class="back-upload" id="localBackField" hidden>
+          <label class="field"><span>Card back image <small>PNG, JPG, or WebP · up to 10 MB</small></span><input id="backFile" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
+          <label class="field"><span>Catbox userhash <small>optional</small></span><input id="catboxUserhash" type="password" autocomplete="off" spellcheck="false" placeholder="Leave blank for an anonymous Catbox upload"><small>Use your userhash to add the upload to your Catbox account. It stays in this tab.</small></label>
+          <label class="field"><span>Imgur Client ID <small>optional backup</small></span><input id="imgurClientId" type="text" autocomplete="off" spellcheck="false" placeholder="Needed only if Catbox fails"><small>If Catbox cannot upload, the site will try Imgur when a Client ID is provided. <a href="https://apidocs.imgur.com/" target="_blank" rel="noopener noreferrer">Imgur API setup</a></small></label>
+          <button class="button secondary" id="uploadBackBtn" type="button">Upload card back</button>
+          <p id="backUploadMessage" role="status" aria-live="polite">Catbox is used first. Imgur is the backup.</p>
+          <label class="field" id="uploadedBackField" hidden><span>Hosted card back URL</span><input id="uploadedBackUrl" type="url" readonly></label>
+        </div>
         <div class="back-row">
           <img id="backPreview" alt="Card back preview">
           <div><strong id="backStatus">Not tested</strong><small id="backHelp">Validated independently from the Saved Object thumbnail.</small></div>

@@ -5,6 +5,7 @@ const els = {
   input: $('#deckInput'), resolve: $('#resolveBtn'), demo: $('#demoBtn'), name: $('#deckName'),
   paste: $('#pasteBtn'), clear: $('#clearBtn'), deckFile: $('#deckFile'),
   format: $('#deckFormat'), provider: $('#provider'), fallback: $('#fallback'), backMode: $('#backMode'), customBackField: $('#customBackField'), back: $('#backUrl'), backPreview: $('#backPreview'),
+  localBackField: $('#localBackField'), backFile: $('#backFile'), backUserhash: $('#catboxUserhash'), imgurClientId: $('#imgurClientId'), uploadBack: $('#uploadBackBtn'), backUploadMessage: $('#backUploadMessage'), uploadedBackField: $('#uploadedBackField'), uploadedBackUrl: $('#uploadedBackUrl'),
   backStatus: $('#backStatus'), backHelp: $('#backHelp'), manualTokens: $('#manualTokens'), includeSide: $('#includeSide'),
   includeMaybe: $('#includeMaybe'), retest: $('#retestBtn'), fresh: $('#freshBtn'), metrics: $('#metrics'),
   pill: $('#validationPill'), progress: $('#progressBar'), progressText: $('#progressText'), grid: $('#cardGrid'),
@@ -17,7 +18,7 @@ const els = {
 
 const state = {
   parsed: [], cards: [], tokens: [], unresolved: [], logs: [], activeTab: 'deck', busy: false,
-  backOk: false, backTested: false, backTesting: false, customBackUrl: '', validated: false, session: '', customThumb: null, generated: null,
+  backOk: false, backTested: false, backTesting: false, backUploading: false, customBackUrl: '', uploadedBackUrl: '', validated: false, session: '', customThumb: null, generated: null,
   fetchCache: new Map(), imageCache: new Map(), errors: [], warnings: [], exact: 0, fallback: 0
 };
 
@@ -334,7 +335,7 @@ function fixDropboxCardBackLink(value){
   return value;
 }
 
-function normalizedCardBackUrl(value=els.back.value.trim()){
+function normalizedCardBackUrl(value=els.backMode.value==='upload'?state.uploadedBackUrl:els.back.value.trim()){
   if(!value)return '';
   try{
     return new URL(fixDropboxCardBackLink(value)).href;
@@ -342,6 +343,7 @@ function normalizedCardBackUrl(value=els.back.value.trim()){
 }
 
 function cardBackFailureHelp(){
+  if(els.backMode.value==='upload')return 'The hosted image could not be loaded. Try uploading again or use a different image.';
   const value=els.back.value.trim();
   try{
     const host=new URL(value).hostname.toLowerCase();
@@ -479,12 +481,12 @@ function dashboardData(){
 function renderMetrics(){const d=dashboardData(),commander=isCommander(),oath=isOathbreaker(),singleton=commander||oath;els.metrics.innerHTML=[metric('Library cards',d.lib,commander?(d.lib===expectedLibrary()?'good':'bad'):(oath?(d.lib===oathbreakerDeckSize()-d.cmd-d.sig?'good':'bad'):(d.lib>=60?'good':'bad'))),metric(commander?'Commander':oath?'Oathbreaker':'Sideboard',commander||oath?d.cmd:`${d.side} / 15`,singleton?(d.cmd?'good':'bad'):(d.side<=15?'good':'bad')),metric(oath?'Total cards':'Main deck',commander?`${d.physical} / 100`:oath?`${d.physical} / ${oathbreakerDeckSize()}`:`${d.lib} / 60+`,singleton?(d.physical===(oath?oathbreakerDeckSize():100)?'good':'bad'):(d.lib>=60?'good':'bad')),metric(oath?'Signature spell':'Tokens / helpers',oath?d.sig:state.tokens.length),metric('Resolved cards',d.resolved,d.resolved===state.cards.filter(c=>included(c)).reduce((n,e)=>n+e.qty,0)?'good':'bad'),metric('Exact printings',d.exact,'good'),metric('Fallback printings',d.fallback,d.fallback?'warn':''),metric('Broken face images',d.brokenFaces,d.brokenFaces?'bad':'good'),metric('Broken token images',d.brokenTokens,d.brokenTokens?'bad':'good'),metric('Broken card backs',state.backOk?0:1,state.backOk?'good':'bad'),metric('DFC states',d.dfc),metric('TTS ID conflicts',d.ids.conflicts.length,d.ids.conflicts.length?'bad':'good')].join('');els.topCount.innerHTML=`<strong>${singleton?d.physical:d.lib}</strong><span>${oath?'total cards':commander?'physical cards':'main deck cards'}</span>`;}
 
 function renderBack(){
-  const standard=els.backMode.value==='standard',label=standard?'Standard card back':'Custom card back',url=normalizedCardBackUrl();
-  els.backPreview.src=url;
+  const mode=els.backMode.value,standard=mode==='standard',label=standard?'Standard card back':mode==='upload'?'Uploaded card back':'Custom card back',url=normalizedCardBackUrl();
+  els.backPreview.src=url||STANDARD_CARD_BACK;
   if(state.backTesting){els.backStatus.textContent='Testing card back…';els.backStatus.style.color='var(--gold)';els.backHelp.textContent='Checking that the URL returns a public image.';}
-  else if(state.backOk){els.backStatus.textContent=`${label} ready`;els.backStatus.style.color='var(--green)';els.backHelp.textContent=url!==els.back.value.trim()?'Dropbox share link converted to a direct image URL for preview and export.':'Validated independently from the Saved Object thumbnail.';}
+  else if(state.backOk){els.backStatus.textContent=`${label} ready`;els.backStatus.style.color='var(--green)';els.backHelp.textContent=mode==='custom'&&url!==els.back.value.trim()?'Dropbox share link converted to a direct image URL for preview and export.':mode==='upload'?'Hosted image ready for TTS export.':'Validated independently from the Saved Object thumbnail.';}
   else if(state.backTested){els.backStatus.textContent=`${label} failed`;els.backStatus.style.color='var(--red)';els.backHelp.textContent=cardBackFailureHelp();}
-  else{els.backStatus.textContent=`${label} not tested`;els.backStatus.style.color='var(--muted)';els.backHelp.textContent='Validated independently from the Saved Object thumbnail.';}
+  else{els.backStatus.textContent=mode==='upload'&&!url?'Upload an image':`${label} not tested`;els.backStatus.style.color='var(--muted)';els.backHelp.textContent=mode==='upload'?'Choose a local image, then upload it before exporting.':'Validated independently from the Saved Object thumbnail.';}
 }
 async function testCardBackOnly(){
   const url=normalizedCardBackUrl();state.backOk=false;state.backTested=false;
@@ -492,14 +494,43 @@ async function testCardBackOnly(){
   state.backTesting=true;renderBack();state.backOk=await loadImage(url);state.backTesting=false;state.backTested=true;renderBack();renderExport();
 }
 function changeCardBackMode(){
-  if(els.backMode.value==='standard'){
-    if(els.customBackField.hidden===false)state.customBackUrl=els.back.value.trim();
-    els.customBackField.hidden=true;els.back.value=STANDARD_CARD_BACK;
-  }else{
-    els.customBackField.hidden=false;els.back.value=state.customBackUrl;setTimeout(()=>els.back.focus(),50);
-  }
+  if(!els.customBackField.hidden)state.customBackUrl=els.back.value.trim();
+  const mode=els.backMode.value;
+  els.customBackField.hidden=mode!=='custom';els.localBackField.hidden=mode!=='upload';
+  els.back.value=mode==='standard'?STANDARD_CARD_BACK:mode==='custom'?state.customBackUrl:state.uploadedBackUrl;
+  if(mode==='custom')setTimeout(()=>els.back.focus(),50);
   state.backOk=false;state.backTested=false;state.validated=false;renderAll();
   if(els.back.value.trim()){if(state.cards.length)runPreflight();else testCardBackOnly();}
+}
+
+function setBackUploadMessage(message,kind=''){
+  els.backUploadMessage.textContent=message;els.backUploadMessage.className=kind;
+}
+
+async function requestCardBackUpload(file,userhash,imgurClientId,prefer='catbox'){
+  const form=new FormData();form.append('file',file);if(userhash)form.append('userhash',userhash);if(imgurClientId)form.append('imgurClientId',imgurClientId);form.append('prefer',prefer);
+  const response=await fetch('/api/upload-cardback',{method:'POST',body:form});
+  const result=await response.json();
+  if(!response.ok||!result.url)throw new Error(result.error||'The image upload failed.');
+  return result;
+}
+
+async function uploadLocalCardBack(){
+  const file=els.backFile.files?.[0],imgurClientId=els.imgurClientId.value.trim();
+  if(!file){setBackUploadMessage('Choose a card back image first.','error');return;}
+  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>10*1024*1024||!file.size){setBackUploadMessage('Use a PNG, JPG, or WebP image under 10 MB.','error');return;}
+  state.backUploading=true;els.uploadBack.disabled=true;els.backMode.disabled=true;setBackUploadMessage('Uploading to Catbox…');
+  try{
+    let result=await requestCardBackUpload(file,els.backUserhash.value.trim(),imgurClientId);
+    let imageReady=await loadImage(result.url);
+    if(!imageReady&&result.provider==='catbox'&&imgurClientId){setBackUploadMessage('Catbox uploaded, but the image could not be loaded. Trying Imgur…');result=await requestCardBackUpload(file,'',imgurClientId,'imgur');imageReady=await loadImage(result.url);}
+    if(!imageReady)throw new Error('The hosted image could not be loaded. Try another image or hosting option.');
+    state.uploadedBackUrl=result.url;els.uploadedBackUrl.value=result.url;els.uploadedBackField.hidden=false;
+    els.back.value=result.url;state.backOk=true;state.backTested=true;state.validated=false;state.generated=null;
+    setBackUploadMessage(`Uploaded to ${result.provider==='imgur'?'Imgur':'Catbox'}${result.fallbackUsed?' after Catbox failed':''}. This public image URL is ready for your deck.`, 'ok');
+    renderBack();renderExport();if(state.cards.length)await runPreflight();
+  }catch(error){setBackUploadMessage(error?.message||'The upload failed.','error');}
+  finally{state.backUploading=false;els.uploadBack.disabled=false;els.backMode.disabled=false;}
 }
 function visibleEntries(){if(state.activeTab==='deck')return libraryEntries();if(state.activeTab==='commander')return isOathbreaker()?oathbreakerEntries():commanderEntries();if(state.activeTab==='signature')return signatureEntries();if(state.activeTab==='sideboard')return sideboardEntries();if(state.activeTab==='tokens')return state.tokens;if(state.activeTab==='errors')return [...state.cards.filter(c=>c.status==='unresolved'||c.imageStatus==='failed'),...state.tokens.filter(c=>c.imageStatus==='failed')];return[];}
 function statEntries(){return isCommander()?state.cards.filter(e=>e.status==='resolved'&&included(e)&&e.section!=='tokens'):isOathbreaker()?[...oathbreakerEntries(),...signatureEntries(),...libraryEntries()]:libraryEntries();}
@@ -787,6 +818,8 @@ els.input.ondrop=event=>{const text=event.dataTransfer?.getData('text/uri-list')
 els.format.onchange=()=>{if(isOathbreaker())els.includeSide.checked=false;state.validated=false;state.generated=null;updateParsePreview();if(state.cards.length)validateAll();renderAll()};
 els.fresh.onclick=()=>{state.session=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;state.cards.forEach(e=>{e.imageStatus='untested';e.faceResults={}});state.tokens.forEach(e=>{e.imageStatus='untested';e.faceResults={}});state.backOk=false;state.validated=false;addLog('Generated one cache-busting session. URLs remain stable until this button is used again.','warn');renderAll();runPreflight()};
 els.backMode.onchange=changeCardBackMode;els.back.oninput=()=>{if(els.backMode.value==='custom'){els.back.value=fixDropboxCardBackLink(els.back.value);state.customBackUrl=els.back.value.trim();els.backPreview.src=state.customBackUrl;state.backOk=false;state.backTested=false;state.validated=false;renderBack();}};els.back.onchange=()=>{els.back.value=fixDropboxCardBackLink(els.back.value.trim());state.customBackUrl=els.back.value.trim();state.backOk=false;state.backTested=false;state.validated=false;renderAll();if(state.cards.length)runPreflight();else testCardBackOnly();};[els.includeSide,els.includeMaybe].forEach(e=>e.onchange=()=>{state.validated=false;renderAll();runPreflight()});
+els.backFile.onchange=()=>{state.uploadedBackUrl='';els.uploadedBackUrl.value='';els.uploadedBackField.hidden=true;state.backOk=false;state.backTested=false;state.validated=false;state.generated=null;setBackUploadMessage(els.backFile.files?.[0]?'Image selected. Upload it to use it as a card back.':'Choose an image to upload.');renderAll();};
+els.uploadBack.onclick=uploadLocalCardBack;
 $$('.tabs button').forEach(b=>b.onclick=()=>{state.activeTab=b.dataset.tab;renderTabs();renderCards()});els.grid.onclick=e=>{const tile=e.target.closest('.card-tile');if(!tile)return;const all=[...state.cards,...state.tokens];openDetail(all.find(x=>(x.key||x.card?.id)===tile.dataset.key))};
 $$('dialog .dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());els.jsonBtn.onclick=downloadJson;els.pngBtn.onclick=downloadPng;els.zipBtn.onclick=downloadZip;els.selectFolderBtn.onclick=chooseFolder;els.folderBtn.onclick=sendToFolder;els.jsonViewBtn.onclick=viewJson;$('#copyJson').onclick=async()=>{await navigator.clipboard.writeText(els.jsonCode.textContent);toast('JSON copied')};$('#downloadJsonModal').onclick=downloadJson;
 els.thumbUpload.onchange=e=>{const f=e.target.files?.[0];if(!f)return;const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');const s=Math.max(256/img.width,256/img.height);x.drawImage(img,(256-img.width*s)/2,(256-img.height*s)/2,img.width*s,img.height*s);c.toBlob(b=>{state.customThumb=b;toast('Custom thumbnail ready for export.')},'image/png')};img.onerror=()=>toast('The thumbnail image could not be read.');img.src=URL.createObjectURL(f)};
