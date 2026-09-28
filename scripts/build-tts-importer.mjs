@@ -29,15 +29,12 @@ function loyaltyAbility5(obj, player, alt) changeLoyalty((alt and -1 or 1) * (de
 function loyaltyAbility6(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[6] or 0)) end
 function loyaltyDisplay(obj, player, alt) changeLoyalty(alt and -1 or 1) end
 
--- Match the printed ability positions used by the in-game card importer.
-local abilityPositions = {
-    [1] = {0.82},
-    [2] = {0.62, 1.02},
-    [3] = {0.52, 0.78, 1.06},
-    [4] = {0.30, 0.58, 0.82, 1.06},
-    [5] = {0.28, 0.49, 0.70, 0.91, 1.12},
-    [6] = {0.38, 0.54, 0.70, 0.86, 1.02, 1.18}
-}
+-- The printed loyalty symbols shift between card layouts and printings.
+-- Keep a visible, evenly spaced control strip just outside the left edge.
+local function abilityZ(index)
+    local gap = #deltas >= 5 and 0.40 or 0.64
+    return 0.06 + (index - (#deltas + 1) / 2) * gap
+end
 
 local function refreshLoyaltyButtons()
     local buttons = self.getButtons() or {}
@@ -54,10 +51,10 @@ local function refreshLoyaltyButtons()
     for index, delta in ipairs(deltas) do
         local cost = delta > 0 and ("+" .. delta) or tostring(delta)
         self.createButton({click_function = "loyaltyAbility" .. index, function_owner = self,
-            label = "", position = {-1.02, 0.35, abilityPositions[#deltas][index]},
-            rotation = {0, 0, 0}, width = 230, height = #deltas >= 5 and 130 or 180,
-            scale = {0.8, 0.55, 0.55}, color = {0, 0, 0, 0},
-            hover_color = {1, 1, 1, 0.08}, press_color = {1, 1, 1, 0.15},
+            label = cost, position = {-1.39, 0.35, abilityZ(index)},
+            rotation = {0, 0, 0}, width = 330, height = 245, font_size = 165,
+            color = {0.12, 0.14, 0.17, 0.97}, font_color = {1, 1, 1},
+            hover_color = {0.28, 0.34, 0.38, 1}, press_color = {0.35, 0.43, 0.45, 1},
             tooltip = "TTS Deck Forge: " .. cost .. " loyalty (right click to undo)"})
     end
 end
