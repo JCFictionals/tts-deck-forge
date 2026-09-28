@@ -143,9 +143,9 @@ function ttsCardEncoderDescription(card, faceIndex = 0) {
   return [oracle, identity.footer, stats ? "[b]" + stats + "[/b]" : ""].filter(Boolean).join("\n");
 }
 
-function ttsCardNeedsEncoderRebuild(card) {
-  const faces = card?.card_faces?.length ? card.card_faces : [card];
-  return faces.some((face) => face?.loyalty != null || /\bPlaneswalker\b/.test(String(face?.type_line || "")));
+function ttsFaceNeedsLoyalty(card, faceIndex = 0) {
+  const face = ttsCardFace(card, faceIndex);
+  return face?.loyalty != null || /\bPlaneswalker\b/.test(String(face?.type_line || card?.type_line || ""));
 }
 
 async function ttsResolveTokens(entries, includeTokens = true) {
@@ -247,7 +247,8 @@ function ttsCardSpec(entry, nickname) {
     backFaceUrl: backFace ? ttsImageUrl(backFace) : "",
     backNickname: backFace ? ttsCardEncoderNickname(card, 1) : "",
     backDescription: backFace ? ttsCardEncoderDescription(card, 1) : "",
-    encoderRebuild: ttsCardNeedsEncoderRebuild(card)
+    loyaltyFront: ttsFaceNeedsLoyalty(card, 0),
+    loyaltyBack: !!backFace && ttsFaceNeedsLoyalty(card, 1)
   };
 }
 

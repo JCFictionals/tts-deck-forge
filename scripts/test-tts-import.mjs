@@ -72,7 +72,7 @@ if (!payload.cardPlan.commanders[0].nickname.startsWith("Commander")) throw new 
 if (!payload.cardPlan.commanders[0].nickname.includes("\nLegendary Planeswalker — Elspeth\n6CMC")) throw new Error("Card Encoder planeswalker identity is missing: " + JSON.stringify(payload.cardPlan.commanders[0].nickname));
 if (!payload.cardPlan.commanders[0].description.includes("+1: Create three 1/1 white Soldier creature tokens.")) throw new Error("Planeswalker rules text is missing.");
 if (!payload.cardPlan.commanders[0].description.endsWith("[b]4[/b]")) throw new Error("Starting loyalty is not encoded for Card Encoder.");
-if (!payload.cardPlan.commanders[0].encoderRebuild) throw new Error("Planeswalker commander is not marked for Card Encoder rebuild.");
+if (!payload.cardPlan.commanders[0].loyaltyFront) throw new Error("Planeswalker commander is missing loyalty controls.");
 if (payload.cardPlan.commanders[0].memo !== commander.oracle_id + "|tokens:" + elemental.id) throw new Error("Token metadata memo is missing.");
 if (!payload.cardPlan.commanders[0].tags.includes("oid:" + commander.oracle_id)) throw new Error("Oracle-ID tag is missing.");
 if (!payload.cardPlan.commanders[0].description.includes("[mtg:oid=" + commander.oracle_id + ";tok=" + elemental.id + "]")) throw new Error("Token metadata footer is missing.");
@@ -80,7 +80,7 @@ if (payload.summary.tokenCount !== 2) throw new Error("Expected one token and on
 if (!payload.cardPlan.tokens.some((spec) => spec.nickname.startsWith(meldResult.name))) throw new Error("Meld result helper is missing.");
 const modalSpec = payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Mila, Crafty Companion"));
 if (!modalSpec?.backFaceUrl || !modalSpec.backNickname.startsWith("Lukka, Wayward Bonder")) throw new Error("Modal double-faced state is missing.");
-if (!modalSpec.encoderRebuild || !modalSpec.backDescription.endsWith("[b]5[/b]")) throw new Error("Reverse-face planeswalker loyalty rebuild metadata is missing.");
+if (modalSpec.loyaltyFront || !modalSpec.loyaltyBack || !modalSpec.backDescription.endsWith("[b]5[/b]")) throw new Error("Loyalty controls must be assigned only to the planeswalker face.");
 if (payload.cardPlan.commanders[0].backFaceUrl || payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Forest"))?.backFaceUrl || payload.cardPlan.library.find((spec) => spec.nickname.startsWith("Gisela"))?.backFaceUrl) {
   throw new Error("Single-faced cards were given a flip-to-back state.");
 }
@@ -183,9 +183,11 @@ if (!forgeObject.LuaScript.includes("player.seated")) throw new Error("Seated-pl
 if (forgeObject.LuaScript.includes('type(hand.position) ~= "table"')) throw new Error("TTS Vector userdata is incorrectly rejected.");
 if (!forgeObject.LuaScript.includes("local coordsOk, px, pz = pcall")) throw new Error("Safe TTS Vector handling is missing.");
 if (!forgeObject.LuaScript.includes('Memo = spec.memo or ""')) throw new Error("Card token metadata is not written into TTS Memo.");
-if (!forgeObject.LuaScript.includes('Global.getVar("Encoder")')) throw new Error("Card Encoder integration is missing.");
-if (!forgeObject.LuaScript.includes('encoder.call("APIrebuildButtons", {obj = object})')) throw new Error("Spawned commanders are not rebuilding Card Encoder buttons.");
-if (!forgeObject.LuaScript.includes('LuaScript = spec.encoderRebuild and CARD_ENCODER_SCRIPT or ""')) throw new Error("Planeswalker face-load rebuild script is missing.");
+if (forgeObject.LuaScript.includes('APIrebuildButtons')) throw new Error("Importer still calls the failing Card Encoder button API.");
+if (!forgeObject.LuaScript.includes('LuaScript = spec.loyaltyFront and LOYALTY_SCRIPT or ""') || !forgeObject.LuaScript.includes('LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or ""')) throw new Error("Loyalty controls are not attached to the correct card faces.");
+if (!forgeObject.LuaScript.includes('function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end') || !forgeObject.LuaScript.includes('return JSON.encode({loyalty = loyalty})')) throw new Error("Planeswalker loyalty ability and save logic is missing.");
+const siteApp = await readFile(new URL("../dist/app.js", import.meta.url), "utf8");
+if (siteApp.includes('APIrebuildButtons') || !siteApp.includes('LuaScript:cardFaceNeedsLoyalty(card,1)?LOYALTY_LUA:')) throw new Error("Site JSON export does not attach loyalty controls to the right face.");
 if (forgeObject.LuaScript.includes("local origin = self.getPosition()")) throw new Error("Importer-relative spawning returned.");
 if (!forgeObject.LuaScript.includes('"openDecklist", -0.31, -0.39, 1400')) throw new Error("Importer button alignment regressed.");
 

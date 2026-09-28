@@ -8,11 +8,61 @@ local FORMAT_KEYS = {"auto", "commander", "oathbreaker", "oathbreaker100", "cons
 local busy = false
 local forgeQueue = {}
 local statusIndex = 4
-local CARD_ENCODER_SCRIPT = [[function onLoad()
-    Wait.frames(function()
-        local ok, encoder = pcall(function() return Global.getVar("Encoder") end)
-        if ok and encoder then pcall(function() encoder.call("APIrebuildButtons", {obj = self}) end) end
-    end, 2)
+local LOYALTY_SCRIPT = [[local loyalty = 0
+local deltas = {}
+
+local function changeLoyalty(amount)
+    loyalty = math.max(0, loyalty + amount)
+    self.editButton({index = 0, label = tostring(loyalty)})
+end
+
+function loyaltyUp() changeLoyalty(1) end
+function loyaltyDown() changeLoyalty(-1) end
+function loyaltyAbility1() changeLoyalty(deltas[1] or 0) end
+function loyaltyAbility2() changeLoyalty(deltas[2] or 0) end
+function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end
+function loyaltyAbility4() changeLoyalty(deltas[4] or 0) end
+function loyaltyDisplay() end
+
+function onLoad(saved_data)
+    local description = self.getDescription() or ""
+    loyalty = tonumber(description:match("%[b%](%d+)%[/b%]%s*$")) or 0
+    if saved_data and saved_data ~= "" then
+        local ok, state = pcall(JSON.decode, saved_data)
+        if ok and type(state) == "table" and tonumber(state.loyalty) then
+            loyalty = tonumber(state.loyalty)
+        end
+    end
+    self.clearButtons()
+    self.createButton({click_function = "loyaltyDisplay", function_owner = self,
+        label = tostring(loyalty), position = {0.43, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 180, height = 150, font_size = 110, scale = {0.18, 0.18, 0.18},
+        color = {0.12, 0.12, 0.12}, font_color = {1, 1, 1}, tooltip = "Current loyalty"})
+    self.createButton({click_function = "loyaltyDown", function_owner = self,
+        label = "−", position = {0.17, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
+        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "Remove one loyalty counter"})
+    self.createButton({click_function = "loyaltyUp", function_owner = self,
+        label = "+", position = {0.69, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
+        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "Add one loyalty counter"})
+    for line in description:gmatch("[^\r\n]+") do
+        local cost = line:gsub("−", "-"):match("^%s*([+%-]?%d+)%s*:")
+        local delta = tonumber(cost)
+        if delta and #deltas < 4 then
+            local index = #deltas + 1
+            deltas[index] = delta
+            self.createButton({click_function = "loyaltyAbility" .. index, function_owner = self,
+                label = cost, position = {-0.54, 0.22, -0.38 + (index - 1) * 0.27},
+                rotation = {0, 0, 0}, width = 180, height = 140, font_size = 90,
+                scale = {0.18, 0.18, 0.18}, color = {0.1, 0.1, 0.1},
+                font_color = {1, 1, 1}, tooltip = "Apply " .. cost .. " loyalty"})
+        end
+    end
+end
+
+function onSave()
+    return JSON.encode({loyalty = loyalty})
 end]]
 
 function onLoad(saved_data)
@@ -297,7 +347,7 @@ function customCardData(spec, key, cardBack, faceUp)
         Tags = spec.tags or {},
         CardID = key * 100,
         CustomDeck = custom,
-        LuaScript = spec.encoderRebuild and CARD_ENCODER_SCRIPT or "",
+        LuaScript = spec.loyaltyFront and LOYALTY_SCRIPT or "",
         LuaScriptState = ""
     }
     local nextKey = key + 1
@@ -312,7 +362,7 @@ function customCardData(spec, key, cardBack, faceUp)
                 Memo = spec.memo or "",
                 Tags = spec.tags or {},
                 CardID = backKey * 100,
-                LuaScript = spec.encoderRebuild and CARD_ENCODER_SCRIPT or "",
+                LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or "",
                 LuaScriptState = "",
                 CustomDeck = {
                     [backKey] = {
@@ -369,16 +419,6 @@ function buildDeckAcrossFrames(specs, name, cardBack, faceUp, startKey, progress
         Wait.frames(addNext, 2)
     end
     addNext()
-end
-
-function rebuildCardEncoderButtons(object)
-    if not object then return end
-    Wait.frames(function()
-        local ok, encoder = pcall(function() return Global.getVar("Encoder") end)
-        if ok and encoder then
-            pcall(function() encoder.call("APIrebuildButtons", {obj = object}) end)
-        end
-    end, 2)
 end
 
 function spawnForgedObjects(payload, player_color)
@@ -461,7 +501,6 @@ function spawnForgedObjects(payload, player_color)
             position[1] + layout.forwardX * (index - 1) * 2.2,
             position[2], position[3] + layout.forwardZ * (index - 1) * 2.2
         }, rotation = {0, layout.rotationY, 0}, callback_function = function(spawned)
-            rebuildCardEncoderButtons(spawned)
             Wait.frames(function() spawnCommandZone(specs, position, label, index + 1, callback) end, 4)
         end})
     end
@@ -480,7 +519,6 @@ function spawnForgedObjects(payload, player_color)
             },
             rotation = {0, layout.rotationY, 0},
             callback_function = function(spawned)
-                rebuildCardEncoderButtons(spawned)
                 Wait.frames(function() spawnCommander(index + 1) end, 4)
             end
         })
