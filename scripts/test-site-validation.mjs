@@ -80,4 +80,21 @@ if (JSON.stringify(exported.DeckIDs) !== JSON.stringify(exported.ContainedObject
 if (Object.keys(exported.CustomDeck).length !== exported.DeckIDs.length || Object.keys(exported.CustomDeck).some(key => !exported.DeckIDs.includes(Number(key) * 100))) throw new Error("Alternate face leaked into the main deck image map.");
 if (!exported.ContainedObjects[1].States?.["2"]?.CustomDeck?.[900003]) throw new Error("Double-faced card lost its alternate face state.");
 
+const cardSource = extract("cardObject");
+const faceGuardSource = source.match(/const FACE_GUARD="(?:\\.|[^"\\])*";/)?.[0];
+if (!cardSource || !faceGuardSource) throw new Error("Card export or face guard is missing.");
+const cardContext = {
+  facesFor: entry => entry.card.back ? [{ url: "front" }, { url: "back" }] : [{ url: "front" }],
+  cardIdentity: () => ({ memo: "" }), normalizedCardBackUrl: () => "cardback",
+  transform: () => ({}), guid: () => "abcdef", cardFaceNeedsLoyalty: () => false,
+  cardEncoderNickname: () => "Card", cardEncoderDescription: () => "", LOYALTY_LUA: ""
+};
+vm.createContext(cardContext);
+vm.runInContext(`${faceGuardSource}\n${cardSource}`, cardContext);
+const exportCard = vm.runInContext("cardObject", cardContext);
+const plainCard = exportCard({ card: { name: "Heliod" } }, 900001, {}).obj;
+const twoFaceCard = exportCard({ card: { name: "Lunarch Veteran", back: true } }, 900002, {}).obj;
+if (plainCard.States || !plainCard.LuaScript.includes("if not hasState or modHasFaceIcon then return end")) throw new Error("Single-faced export must carry the false flip icon guard.");
+if (!twoFaceCard.States?.["2"]?.LuaScript.includes("forgeFlipFace") || !twoFaceCard.LuaScript.includes("forgeFlipFace") || !twoFaceCard.LuaScript.includes('label = "●"')) throw new Error("Both double-faced states must carry the matching flip icon and click handler.");
+
 console.log("Site multiplicity and deck mapping tests passed.");

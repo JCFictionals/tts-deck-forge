@@ -94,13 +94,15 @@ local FACE_GUARD = [[
 local previousOnLoad = onLoad
 local previousOnDrop = onDrop
 
-local function removeFalseFaceIcon()
-    if self.getStateId() ~= -1 then return end
+local function syncFaceIcon()
+    local hasState = self.getStateId() ~= -1
     local buttons = self.getButtons() or {}
     local centers = {}
+    local modHasFaceIcon = false
     for _, button in ipairs(buttons) do
         local action = tostring(button.click_function or "")
         if action == "ReceiveChangeActiveFace" or action == "ReceiveReimportOrChangeActiveFace" then
+            modHasFaceIcon = true
             local p = button.position or {}
             centers[#centers + 1] = {x = tonumber(p.x or p[1]), z = tonumber(p.z or p[3])}
         end
@@ -111,7 +113,7 @@ local function removeFalseFaceIcon()
         local isFaceAction = action == "ReceiveChangeActiveFace"
             or action == "ReceiveReimportOrChangeActiveFace"
         local isFaceDecoration = false
-        if action == "DoNothing" then
+        if not hasState and action == "DoNothing" then
             local p = button.position or {}
             local x, z = tonumber(p.x or p[1]), tonumber(p.z or p[3])
             for _, center in ipairs(centers) do
@@ -123,24 +125,62 @@ local function removeFalseFaceIcon()
                 end
             end
         end
-        if isFaceAction or isFaceDecoration or action == "forgeSwitchState" then
+        local isOwnIcon = action == "forgeFlipFace" or action == "forgeFaceDecoration"
+            or action == "forgeSwitchState"
+        if (not hasState and (isFaceAction or isFaceDecoration))
+            or (isOwnIcon and (not hasState or modHasFaceIcon or action == "forgeSwitchState")) then
             self.removeButton(buttons[i].index or (i - 1))
         end
     end
+    if not hasState or modHasFaceIcon then return end
+    for _, button in ipairs(self.getButtons() or {}) do
+        if button.click_function == "forgeFlipFace" then return end
+    end
+
+    -- Match Easy Modules' small circle/triangle at the top left of a card.
+    -- The normal card-tools <<< button sits separately above it.
+    local back = self.getStateId() == 2
+    local x, z = -0.875, -1.300
+    local tip = back and "Flip to front face" or "Flip to back face"
+    self.createButton({click_function = "forgeFlipFace", function_owner = self,
+        label = "●", tooltip = tip, position = {x, 0.35, z},
+        rotation = {0, 0, 0}, scale = {0.5, 0.5, 0.5},
+        width = 150, height = 150, font_size = 525,
+        color = {1, 0.8, 0}, font_color = {0.17, 0.17, 0.12}})
+    self.createButton({click_function = "forgeFaceDecoration", function_owner = self,
+        label = "○", position = {x, 0.40, z},
+        rotation = {0, 0, -90}, scale = {0.5, 0.5, 0.5},
+        width = 0, height = 0, font_size = 420,
+        font_color = {0.65, 0.52, 0}})
+    self.createButton({click_function = "forgeFaceDecoration", function_owner = self,
+        label = back and "▾" or "▴", position = {x, 0.40, z + 0.0125},
+        rotation = {0, 0, 0}, scale = {0.5, 0.5, 0.5},
+        width = 0, height = 0, font_size = 176,
+        font_color = {1, 1, 1}})
+end
+
+function forgeFaceDecoration() end
+
+function forgeFlipFace()
+    local states = self.getStates() or {}
+    if #states == 0 then return end
+    local scale = self.getScale()
+    local nextFace = self.setState(states[1].id)
+    if nextFace then nextFace.setScale(scale) end
 end
 
 function onLoad(saved_data)
     if previousOnLoad then previousOnLoad(saved_data) end
-    Wait.frames(removeFalseFaceIcon, 20)
-    Wait.time(removeFalseFaceIcon, 3)
-    Wait.time(removeFalseFaceIcon, 5)
+    Wait.frames(syncFaceIcon, 20)
+    Wait.time(syncFaceIcon, 3)
+    Wait.time(syncFaceIcon, 5)
 end
 
 function onDrop()
     if previousOnDrop then previousOnDrop() end
-    Wait.frames(removeFalseFaceIcon, 3)
-    Wait.time(removeFalseFaceIcon, 3)
-    Wait.time(removeFalseFaceIcon, 5)
+    Wait.frames(syncFaceIcon, 3)
+    Wait.time(syncFaceIcon, 3)
+    Wait.time(syncFaceIcon, 5)
 end]]
 
 function onLoad(saved_data)
