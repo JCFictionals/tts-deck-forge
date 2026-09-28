@@ -170,11 +170,11 @@ async function uploadToImgur(file,clientId) {
   } finally { clearTimeout(timer); }
 }
 
-async function handleCardBackUpload(request) {
+async function handleCardBackUpload(request,siteImgurClientId="") {
   if (Number(request.headers.get("content-length")) > 12*1024*1024) return json({error:"The image must be under 10 MB."},413);
   let form;
   try { form = await request.formData(); } catch { return json({error:"Choose a PNG, JPG, or WebP image."},400); }
-  const file=form.get("file"),userhash=String(form.get("userhash")||"").trim(),clientId=String(form.get("imgurClientId")||"").trim();
+  const file=form.get("file"),userhash=String(form.get("userhash")||"").trim(),clientId=String(form.get("imgurClientId")||siteImgurClientId||"").trim();
   const prefer=form.get("prefer")==="imgur"?"imgur":"catbox";
   if (!file || typeof file.arrayBuffer!=="function" || !file.size || file.size>10*1024*1024 || !["image/png","image/jpeg","image/webp"].includes(file.type)) return json({error:"Use a PNG, JPG, or WebP image under 10 MB."},400);
   if (userhash && !/^[A-Za-z0-9_-]{1,128}$/.test(userhash)) return json({error:"The Catbox userhash has invalid characters."},400);
@@ -598,7 +598,7 @@ async function handleTtsImport(request) {
 
 
 export default {
-  async fetch(request) {
+  async fetch(request,env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/import-deck") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
@@ -610,7 +610,7 @@ export default {
     }
     if (url.pathname === "/api/upload-cardback") {
       if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
-      return handleCardBackUpload(request);
+      return handleCardBackUpload(request,env?.IMGUR_CLIENT_ID);
     }
     if (url.pathname === "/downloads/Commander_TTS_Deck_Forge_Importer.json") {
       if (request.method !== "GET" && request.method !== "HEAD") return response("Method not allowed", "text/plain; charset=utf-8", 405);

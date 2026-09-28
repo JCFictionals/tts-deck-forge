@@ -45,6 +45,10 @@ try {
   if (calls[1].options.body.has("userhash")) throw new Error("Catbox userhash leaked to Imgur.");
 
   calls.length=0;
+  const siteBackup=await worker.fetch(makeRequest(),{IMGUR_CLIENT_ID:"site-id"});
+  if ((await siteBackup.json()).provider!=="imgur"||calls[1]?.options.headers.Authorization!=="Client-ID site-id") throw new Error("Site-wide Imgur backup was not used for visitors without a Client ID.");
+
+  calls.length=0;
   globalThis.fetch=async (url,options)=>{
     calls.push({url,options});
     return String(url).includes("catbox") ? new Response("https://evil.example/cardback.png") : new Response(JSON.stringify({success:true,data:{link:"https://i.imgur.com/safe.png"}}));
