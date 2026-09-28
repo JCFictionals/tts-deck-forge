@@ -195,7 +195,7 @@ async function handleCardBackUpload(request,siteImgurClientId="") {
   }
   try { return json({url:await uploadToCatbox(file,userhash),provider:"catbox",fallbackUsed:false}); }
   catch {
-    if (!clientId) return json({error:"Catbox could not upload this image. Add an Imgur Client ID to enable the backup host, then retry."},502);
+    if (!clientId) return json({error:"Catbox could not upload this image. Upload anonymously at imgur.com/upload, then paste the direct image URL using Custom image URL, or add an Imgur Client ID and retry."},502);
     try { return json({url:await uploadToImgur(file,clientId),provider:"imgur",fallbackUsed:true}); }
     catch { return json({error:"Both Catbox and Imgur failed to upload this image. Check the Imgur Client ID or try a smaller image."},502); }
   }

@@ -19,6 +19,7 @@ a.button{text-decoration:none;display:inline-flex;align-items:center;justify-con
 .back-upload .field>small a{color:#a5cbe2}
 .back-upload .button{justify-self:start}
 .back-upload>p{margin:0;color:var(--muted);font-size:.875rem;line-height:1.4;overflow-wrap:anywhere}
+.back-upload>p a{color:#a5cbe2;text-decoration:underline;text-underline-offset:2px}
 .back-upload>p.error{color:var(--red)}
 .back-upload>p.ok{color:var(--green)}
 @media(max-width:650px){.back-upload{margin-inline:14px}.back-upload .button{width:100%}}

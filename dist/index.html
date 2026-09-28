@@ -55,9 +55,10 @@
         <div class="back-upload" id="localBackField" hidden>
           <label class="field"><span>Card back image <small>PNG, JPG, or WebP · up to 10 MB</small></span><input id="backFile" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
           <label class="field"><span>Catbox userhash <small>optional</small></span><input id="catboxUserhash" type="password" autocomplete="off" spellcheck="false" placeholder="Leave blank for an anonymous Catbox upload"><small>Use your userhash to add the upload to your Catbox account. It stays in this tab.</small></label>
-          <label class="field"><span>Imgur Client ID <small>optional backup</small></span><input id="imgurClientId" type="text" autocomplete="off" spellcheck="false" placeholder="Needed only if Catbox fails"><small>If Catbox cannot upload, the site will try Imgur when a Client ID is provided. <a href="https://apidocs.imgur.com/" target="_blank" rel="noopener noreferrer">Imgur API setup</a></small></label>
+          <label class="field"><span>Imgur Client ID <small>optional automatic backup</small></span><input id="imgurClientId" type="text" autocomplete="off" spellcheck="false" placeholder="For automatic Imgur fallback"><small>Automatic Imgur uploads use an app Client ID. <a href="https://apidocs.imgur.com/" target="_blank" rel="noopener noreferrer">Imgur API setup</a></small></label>
+          <p class="upload-manual-help">No Client ID? <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer">Upload anonymously on Imgur</a>, then select <strong>Custom image URL</strong> above and paste the direct image link.</p>
           <button class="button secondary" id="uploadBackBtn" type="button">Upload card back</button>
-          <p id="backUploadMessage" role="status" aria-live="polite">Catbox is used first. Imgur is the backup.</p>
+          <p id="backUploadMessage" role="status" aria-live="polite">Catbox is used first. Imgur is an automatic backup when a Client ID is provided.</p>
           <label class="field" id="uploadedBackField" hidden><span>Hosted card back URL</span><input id="uploadedBackUrl" type="url" readonly></label>
         </div>
         <div class="back-row">
