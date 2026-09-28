@@ -54,11 +54,11 @@
         <label class="field" id="customBackField" hidden><span>Custom card back URL</span><input id="backUrl" type="url" value="https://steamusercontent-a.akamaihd.net/ugc/1647720103762682461/35EF6E87970E2A5D6581E7D96A99F8A575B7A15F/" placeholder="https://example.com/my-card-back.jpg"></label>
         <div class="back-upload" id="localBackField" hidden>
           <label class="field"><span>Card back image <small>PNG, JPG, or WebP · up to 10 MB</small></span><input id="backFile" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
-          <label class="field"><span>Catbox userhash <small>optional</small></span><input id="catboxUserhash" type="password" autocomplete="off" spellcheck="false" placeholder="Leave blank for an anonymous Catbox upload"><small>Use your userhash to add the upload to your Catbox account. It stays in this tab.</small></label>
+          <label class="field"><span>Catbox userhash <small>recommended</small></span><input id="catboxUserhash" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your Catbox userhash"><small>Needed for reliable Catbox uploads from this site. Used only for this upload; the site does not save it.</small></label>
           <label class="field"><span>Imgur Client ID <small>optional automatic backup</small></span><input id="imgurClientId" type="text" autocomplete="off" spellcheck="false" placeholder="For automatic Imgur fallback"><small>Automatic Imgur uploads use an app Client ID. <a href="https://apidocs.imgur.com/" target="_blank" rel="noopener noreferrer">Imgur API setup</a></small></label>
           <p class="upload-manual-help">If automatic upload fails, <a href="https://catbox.moe/" target="_blank" rel="noopener noreferrer">upload on Catbox</a> or <a href="https://imgur.com/upload" target="_blank" rel="noopener noreferrer">upload anonymously on Imgur</a>. Then select <strong>Custom image URL</strong> above and paste the direct image link.</p>
           <button class="button secondary" id="uploadBackBtn" type="button">Upload card back</button>
-          <p id="backUploadMessage" role="status" aria-live="polite">Catbox is used first. Imgur is an automatic backup when a Client ID is provided.</p>
+          <p id="backUploadMessage" role="status" aria-live="polite">Catbox is used first. Enter a userhash for reliable uploads; Imgur is the backup when a Client ID is provided.</p>
           <label class="field" id="uploadedBackField" hidden><span>Hosted card back URL</span><input id="uploadedBackUrl" type="url" readonly></label>
         </div>
         <div class="back-row">

@@ -515,32 +515,13 @@ async function requestCardBackUpload(file,userhash,imgurClientId,prefer='catbox'
   return result;
 }
 
-async function uploadToCatboxFromBrowser(file,userhash){
-  // Check that the API allows this origin before sending a file across origins.
-  const check=await fetch('https://catbox.moe/user/api.php',{method:'GET',mode:'cors'});
-  if(check.status>=500)throw new Error('Catbox is unavailable from this browser.');
-  const form=new FormData();form.append('reqtype','fileupload');if(userhash)form.append('userhash',userhash);form.append('fileToUpload',file,file.name);
-  const response=await fetch('https://catbox.moe/user/api.php',{method:'POST',body:form,mode:'cors'});
-  if(!response.ok)throw new Error(`Catbox returned HTTP ${response.status} to the browser.`);
-  const url=new URL((await response.text()).trim());
-  if(url.protocol!=='https:'||url.hostname!=='files.catbox.moe'||!/^\/[A-Za-z0-9._-]+$/.test(url.pathname))throw new Error('Catbox did not return a direct image URL.');
-  return{url:url.href,provider:'catbox',fallbackUsed:false};
-}
-
 async function uploadLocalCardBack(){
   const file=els.backFile.files?.[0],imgurClientId=els.imgurClientId.value.trim();
   if(!file){setBackUploadMessage('Choose a card back image first.','error');return;}
   if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>10*1024*1024||!file.size){setBackUploadMessage('Use a PNG, JPG, or WebP image under 10 MB.','error');return;}
   state.backUploading=true;els.uploadBack.disabled=true;els.backMode.disabled=true;setBackUploadMessage('Uploading to Catbox…');
   try{
-    let result;
-    try{result=await requestCardBackUpload(file,els.backUserhash.value.trim(),imgurClientId);}
-    catch(error){
-      if(!/Catbox upload failed \(HTTP 520\)/.test(error?.message||''))throw error;
-      setBackUploadMessage('Catbox returned HTTP 520. Trying directly from your browser…');
-      try{result=await uploadToCatboxFromBrowser(file,els.backUserhash.value.trim());}
-      catch{throw new Error('Catbox returned HTTP 520, and direct upload is unavailable. Upload at catbox.moe and paste the file link using Custom image URL, or use Imgur.');}
-    }
+    let result=await requestCardBackUpload(file,els.backUserhash.value.trim(),imgurClientId);
     let imageReady=await loadImage(result.url);
     if(!imageReady&&result.provider==='catbox'&&imgurClientId){setBackUploadMessage('Catbox uploaded, but the image could not be loaded. Trying Imgur…');result=await requestCardBackUpload(file,'',imgurClientId,'imgur');imageReady=await loadImage(result.url);}
     if(!imageReady)throw new Error('The hosted image could not be loaded. Try another image or hosting option.');

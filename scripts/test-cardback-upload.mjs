@@ -27,7 +27,9 @@ try {
   const catbox=await worker.fetch(makeRequest({userhash:"my-userhash",clientId:"imgur-id"}));
   const result=await catbox.json();
   if (catbox.status!==200||result.provider!=="catbox"||result.url!=="https://files.catbox.moe/mycard.png"||calls.length!==1) throw new Error("Catbox upload did not return its hosted URL.");
-  if ((await calls[0].options.body.get("userhash"))!=="my-userhash" || calls[0].options.body.get("reqtype")!=="fileupload") throw new Error("Catbox userhash or upload format was lost.");
+  const catboxRequest=calls[0].options;
+  if (catboxRequest.body.get("userhash")!=="my-userhash" || catboxRequest.body.get("reqtype")!=="fileupload") throw new Error("Catbox userhash or upload format was lost.");
+  if (!catboxRequest.headers["User-Agent"].startsWith("Mozilla/5.0")) throw new Error("Catbox compatibility header was missing.");
 
   calls.length=0;
   const anonymous=await worker.fetch(makeRequest());
@@ -64,6 +66,10 @@ try {
   globalThis.fetch=async()=>new Response("Catbox unavailable",{status:503});
   const noBackup=await worker.fetch(makeRequest());
   if (noBackup.status!==502||!(await noBackup.json()).error.includes("HTTP 503")) throw new Error("Catbox response status was hidden from the user.");
+
+  globalThis.fetch=async()=>new Response("Invalid uploader",{status:412});
+  const anonymousRejected=await worker.fetch(makeRequest());
+  if (anonymousRejected.status!==502||!(await anonymousRejected.json()).error.includes("Enter your Catbox userhash")) throw new Error("Catbox anonymous rejection did not explain the working account option.");
 
   globalThis.fetch=async()=>new Response("Upload rejected",{status:200});
   const unexpected=await worker.fetch(makeRequest());

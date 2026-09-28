@@ -156,8 +156,10 @@ async function uploadToCatbox(file,userhash) {
   form.append("fileToUpload",file,file.name);
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(),30000);
   try {
-    const result = await fetch("https://catbox.moe/user/api.php",{method:"POST",body:form,signal:controller.signal});
-    if (!result.ok) throw new Error("HTTP " + result.status);
+    const result = await fetch("https://catbox.moe/user/api.php",{method:"POST",headers:{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"},body:form,signal:controller.signal});
+    if (!result.ok) {
+      throw new Error("HTTP " + result.status);
+    }
     const responseText = await result.text();
     try { return hostedImageUrl(responseText,"files.catbox.moe"); }
     catch { throw new Error("no direct image URL returned"); }
@@ -206,7 +208,10 @@ async function handleCardBackUpload(request,siteImgurClientId="") {
   catch (error) {
     const reason=catboxFailureReason(error);
     console.warn("Catbox cardback upload failed:",reason);
-    if (!clientId) return json({error:"Catbox upload failed (" + reason + "). Upload anonymously at imgur.com/upload, then paste the direct image URL using Custom image URL, or add an Imgur Client ID and retry."},502);
+    if (!clientId) {
+      if (reason==="HTTP 412" && !userhash) return json({error:"Catbox rejected the anonymous upload from this site (HTTP 412). Enter your Catbox userhash and retry, or upload manually on Catbox or Imgur."},502);
+      return json({error:"Catbox upload failed (" + reason + "). Check your userhash, or upload manually on Catbox or Imgur and paste the direct image URL using Custom image URL."},502);
+    }
     try { return json({url:await uploadToImgur(file,clientId),provider:"imgur",fallbackUsed:true}); }
     catch { return json({error:"Both Catbox and Imgur failed to upload this image. Check the Imgur Client ID or try a smaller image."},502); }
   }
