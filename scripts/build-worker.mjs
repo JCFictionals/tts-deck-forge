@@ -157,9 +157,18 @@ async function uploadToCatbox(file,userhash) {
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(),30000);
   try {
     const result = await fetch("https://catbox.moe/user/api.php",{method:"POST",body:form,signal:controller.signal});
-    if (!result.ok) throw new Error("Catbox rejected the upload.");
-    return hostedImageUrl(await result.text(),"files.catbox.moe");
+    if (!result.ok) throw new Error("HTTP " + result.status);
+    const responseText = await result.text();
+    try { return hostedImageUrl(responseText,"files.catbox.moe"); }
+    catch { throw new Error("no direct image URL returned"); }
   } finally { clearTimeout(timer); }
+}
+
+function catboxFailureReason(error) {
+  if (error?.name === "AbortError") return "timed out";
+  if (/^HTTP [1-5][0-9]{2}$/.test(error?.message || "")) return error.message;
+  if (error?.message === "no direct image URL returned") return error.message;
+  return "connection failed";
 }
 
 async function uploadToImgur(file,clientId) {
@@ -194,8 +203,10 @@ async function handleCardBackUpload(request,siteImgurClientId="") {
     catch { return json({error:"Imgur could not upload this image. Check the Client ID and try again."},502); }
   }
   try { return json({url:await uploadToCatbox(file,userhash),provider:"catbox",fallbackUsed:false}); }
-  catch {
-    if (!clientId) return json({error:"Catbox could not upload this image. Upload anonymously at imgur.com/upload, then paste the direct image URL using Custom image URL, or add an Imgur Client ID and retry."},502);
+  catch (error) {
+    const reason=catboxFailureReason(error);
+    console.warn("Catbox cardback upload failed:",reason);
+    if (!clientId) return json({error:"Catbox upload failed (" + reason + "). Upload anonymously at imgur.com/upload, then paste the direct image URL using Custom image URL, or add an Imgur Client ID and retry."},502);
     try { return json({url:await uploadToImgur(file,clientId),provider:"imgur",fallbackUsed:true}); }
     catch { return json({error:"Both Catbox and Imgur failed to upload this image. Check the Imgur Client ID or try a smaller image."},502); }
   }

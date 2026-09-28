@@ -63,7 +63,11 @@ try {
 
   globalThis.fetch=async()=>new Response("Catbox unavailable",{status:503});
   const noBackup=await worker.fetch(makeRequest());
-  if (noBackup.status!==502||!(await noBackup.json()).error.includes("Imgur Client ID")) throw new Error("Missing Imgur backup did not produce useful guidance.");
+  if (noBackup.status!==502||!(await noBackup.json()).error.includes("HTTP 503")) throw new Error("Catbox response status was hidden from the user.");
+
+  globalThis.fetch=async()=>new Response("Upload rejected",{status:200});
+  const unexpected=await worker.fetch(makeRequest());
+  if (!(await unexpected.json()).error.includes("no direct image URL returned")) throw new Error("Catbox's unexpected response was hidden from the user.");
 
   const badFile=new File(["not an image"],"fake.png",{type:"image/png"});
   const rejected=await worker.fetch(makeRequest({file:badFile}));
