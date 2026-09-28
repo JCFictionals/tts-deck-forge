@@ -618,7 +618,7 @@ function cardObject(entry, key, pos, rotZ=0, nickname=''){
 
 function deckObject(entries,name,pos,faceUp=false,startKey=900001){
   const contained=[];const ids=[];const custom={};let key=startKey;
-  entries.forEach(entry=>{for(let q=0;q<entry.qty;q++){const made=cardObject(entry,key,pos,faceUp?0:180);contained.push(made.obj);ids.push(made.obj.CardID);Object.assign(custom,made.obj.CustomDeck);if(made.obj.States)Object.values(made.obj.States).forEach(s=>Object.assign(custom,s.CustomDeck));key=made.nextKey;}});
+  entries.forEach(entry=>{for(let q=0;q<entry.qty;q++){const made=cardObject(entry,key,pos,faceUp?0:180);contained.push(made.obj);ids.push(made.obj.CardID);Object.assign(custom,made.obj.CustomDeck);key=made.nextKey;}});
   const obj={Name:'DeckCustom',Transform:transform(pos,faceUp?0:180),Nickname:name,Description:'',GMNotes:'',AltLookAngle:{x:0,y:0,z:0},ColorDiffuse:{r:1,g:1,b:1},LayoutGroupSortIndex:0,Value:0,Locked:false,Grid:true,Snap:true,IgnoreFoW:false,MeasureMovement:false,DragSelectable:true,Autoraise:true,Sticky:true,Tooltip:true,GridProjection:false,HideWhenFaceDown:true,Hands:true,SidewaysCard:false,DeckIDs:ids,CustomDeck:custom,LuaScript:'',LuaScriptState:'',XmlUI:'',ContainedObjects:contained,GUID:guid()};
   return {obj,nextKey:key,count:contained.length};
 }

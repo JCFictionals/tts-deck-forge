@@ -449,11 +449,6 @@ function addCardToDeck(deckData, cardData)
     table.insert(deckData.DeckIDs, cardData.CardID)
     table.insert(deckData.ContainedObjects, cardData)
     for id, custom in pairs(cardData.CustomDeck or {}) do deckData.CustomDeck[id] = custom end
-    if cardData.States then
-        for _, state in pairs(cardData.States) do
-            for id, custom in pairs(state.CustomDeck or {}) do deckData.CustomDeck[id] = custom end
-        end
-    end
 end
 
 function buildDeckAcrossFrames(specs, name, cardBack, faceUp, startKey, progressOffset, progressTotal, callback)

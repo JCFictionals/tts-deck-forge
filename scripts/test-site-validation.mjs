@@ -60,4 +60,24 @@ if (!vm.runInContext("oathbreakerErrors", context)(oath).some(error => error.inc
 if (!vm.runInContext("oathbreakerErrors", context)([oath[0], item({ ...growth, type_line: "Creature" }, 1, "signature"), oath[2]]).some(error => error.includes("instant or sorcery"))) throw new Error("Signature Spell type must be checked.");
 if (!vm.runInContext("oathbreakerErrors", context)([oath[0], item({ ...growth, color_identity: ["U"] }, 1, "signature"), oath[2]]).some(error => error.includes("color identity"))) throw new Error("Signature Spell color identity must be checked.");
 
-console.log("Site multiplicity validation tests passed.");
+// A card's alternate face is its own state, not another card in the deck.
+const deckSource = extract("deckObject");
+if (!deckSource) throw new Error("Could not locate deckObject().");
+const makeCard = (entry, key) => {
+  const obj = { CardID: key * 100, Nickname: entry.card.name, CustomDeck: { [key]: { FaceURL: entry.card.name + " front" } } };
+  if (entry.card.back) obj.States = { "2": { CardID: (key + 1) * 100, CustomDeck: { [key + 1]: { FaceURL: entry.card.name + " back" } } } };
+  return { obj, nextKey: key + (entry.card.back ? 2 : 1) };
+};
+const deckContext = { cardObject: makeCard, transform: () => ({}), guid: () => "abcdef" };
+vm.createContext(deckContext);
+vm.runInContext(deckSource, deckContext);
+const exported = vm.runInContext("deckObject", deckContext)([
+  { card: { name: "First" }, qty: 1 },
+  { card: { name: "Double-faced", back: true }, qty: 1 },
+  { card: { name: "Last" }, qty: 1 }
+], "Search test", { x: 0, y: 1, z: 0 }).obj;
+if (JSON.stringify(exported.DeckIDs) !== JSON.stringify(exported.ContainedObjects.map(card => card.CardID))) throw new Error("Deck IDs do not match the cards in order.");
+if (Object.keys(exported.CustomDeck).length !== exported.DeckIDs.length || Object.keys(exported.CustomDeck).some(key => !exported.DeckIDs.includes(Number(key) * 100))) throw new Error("Alternate face leaked into the main deck image map.");
+if (!exported.ContainedObjects[1].States?.["2"]?.CustomDeck?.[900003]) throw new Error("Double-faced card lost its alternate face state.");
+
+console.log("Site multiplicity and deck mapping tests passed.");

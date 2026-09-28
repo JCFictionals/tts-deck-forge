@@ -219,7 +219,6 @@ function ttsDeckObject(entries, name, backUrl, position, faceUp, startKey) {
       contained.push(made.object);
       deckIds.push(made.object.CardID);
       Object.assign(customDeck, made.object.CustomDeck);
-      if (made.object.States) Object.values(made.object.States).forEach((state) => Object.assign(customDeck, state.CustomDeck || {}));
       key = made.nextKey;
     }
   });
