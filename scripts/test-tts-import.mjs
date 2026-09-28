@@ -203,7 +203,9 @@ if (!loyaltySource || loyaltySource.includes('self.clearButtons()') || !loyaltyS
   throw new Error("Planeswalker controls must survive the TTS Encoder rebuilding buttons when a card leaves a deck.");
 }
 if (!forgeObject.LuaScript.includes('if previousOnDrop then previousOnDrop() end') || !forgeObject.LuaScript.includes('Wait.time(removeFalseFlipButton, 3)')) throw new Error("Single-face cleanup must run after other TTS mods update dropped cards.");
-if (!forgeObject.LuaScript.includes('function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end') || !forgeObject.LuaScript.includes('return JSON.encode({loyalty = loyalty})')) throw new Error("Planeswalker loyalty ability and save logic is missing.");
+if (!loyaltySource.includes('function loyaltyAbility3(obj, player, alt)') || !loyaltySource.includes('return JSON.encode({loyalty = loyalty})')) throw new Error("Planeswalker loyalty ability and save logic is missing.");
+if (!loyaltySource.includes('[3] = {0.52, 0.78, 1.06}') || !loyaltySource.includes('position = {-1.02, 0.35, abilityPositions[#deltas][index]}') || !loyaltySource.includes('color = {0, 0, 0, 0}') || !loyaltySource.includes('position = {0.81, 0.35, 1.3315}')) throw new Error("Planeswalker buttons no longer align with the printed emblems and loyalty shield.");
+if (loyaltySource.includes('scale = {0.18, 0.18, 0.18}') || loyaltySource.includes('function loyaltyUp()')) throw new Error("Tiny duplicate planeswalker buttons returned.");
 const siteApp = await readFile(new URL("../dist/app.js", import.meta.url), "utf8");
 if (siteApp.includes('APIrebuildButtons') || !siteApp.includes('LuaScript:cardFaceNeedsLoyalty(card,1)?LOYALTY_LUA:') || !siteApp.includes("LuaScript:loyaltyLua+(fronts.length===1?SINGLE_FACE_GUARD:'')")) throw new Error("Site JSON export does not handle single-faced and planeswalker cards correctly.");
 if (!siteApp.includes('Wait.time(refreshLoyaltyButtons, 2.5)') || !siteApp.includes('if previousOnDrop then previousOnDrop() end')) throw new Error("Site JSON export loses the post-draw planeswalker controls.");

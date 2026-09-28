@@ -14,20 +14,30 @@ local deltas = {}
 local function changeLoyalty(amount)
     loyalty = math.max(0, loyalty + amount)
     for i, button in ipairs(self.getButtons() or {}) do
-        if button.tooltip == "TTS Deck Forge: current loyalty" then
+        if tostring(button.tooltip or ""):find("TTS Deck Forge: current loyalty", 1, true) then
             self.editButton({index = button.index or (i - 1), label = tostring(loyalty)})
             return
         end
     end
 end
 
-function loyaltyUp() changeLoyalty(1) end
-function loyaltyDown() changeLoyalty(-1) end
-function loyaltyAbility1() changeLoyalty(deltas[1] or 0) end
-function loyaltyAbility2() changeLoyalty(deltas[2] or 0) end
-function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end
-function loyaltyAbility4() changeLoyalty(deltas[4] or 0) end
-function loyaltyDisplay() end
+function loyaltyAbility1(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[1] or 0)) end
+function loyaltyAbility2(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[2] or 0)) end
+function loyaltyAbility3(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[3] or 0)) end
+function loyaltyAbility4(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[4] or 0)) end
+function loyaltyAbility5(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[5] or 0)) end
+function loyaltyAbility6(obj, player, alt) changeLoyalty((alt and -1 or 1) * (deltas[6] or 0)) end
+function loyaltyDisplay(obj, player, alt) changeLoyalty(alt and -1 or 1) end
+
+-- Match the printed ability positions used by the in-game card importer.
+local abilityPositions = {
+    [1] = {0.82},
+    [2] = {0.62, 1.02},
+    [3] = {0.52, 0.78, 1.06},
+    [4] = {0.30, 0.58, 0.82, 1.06},
+    [5] = {0.28, 0.49, 0.70, 0.91, 1.12},
+    [6] = {0.38, 0.54, 0.70, 0.86, 1.02, 1.18}
+}
 
 local function refreshLoyaltyButtons()
     local buttons = self.getButtons() or {}
@@ -37,24 +47,18 @@ local function refreshLoyaltyButtons()
         end
     end
     self.createButton({click_function = "loyaltyDisplay", function_owner = self,
-        label = tostring(loyalty), position = {0.43, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 180, height = 150, font_size = 110, scale = {0.18, 0.18, 0.18},
-        color = {0.12, 0.12, 0.12}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: current loyalty"})
-    self.createButton({click_function = "loyaltyDown", function_owner = self,
-        label = "−", position = {0.17, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
-        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: remove one loyalty counter"})
-    self.createButton({click_function = "loyaltyUp", function_owner = self,
-        label = "+", position = {0.69, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
-        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: add one loyalty counter"})
+        label = tostring(loyalty), position = {0.81, 0.35, 1.3315}, rotation = {0, 0, 0},
+        width = 105, height = 115, font_size = 100,
+        color = {0.14, 0.14, 0.14, 0.98}, font_color = {1, 1, 1},
+        tooltip = "TTS Deck Forge: current loyalty (left click +1, right click -1)"})
     for index, delta in ipairs(deltas) do
         local cost = delta > 0 and ("+" .. delta) or tostring(delta)
         self.createButton({click_function = "loyaltyAbility" .. index, function_owner = self,
-            label = cost, position = {-0.54, 0.22, -0.38 + (index - 1) * 0.27},
-            rotation = {0, 0, 0}, width = 180, height = 140, font_size = 90,
-            scale = {0.18, 0.18, 0.18}, color = {0.1, 0.1, 0.1},
-            font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: apply " .. cost .. " loyalty"})
+            label = "", position = {-1.02, 0.35, abilityPositions[#deltas][index]},
+            rotation = {0, 0, 0}, width = 230, height = #deltas >= 5 and 130 or 180,
+            scale = {0.8, 0.55, 0.55}, color = {0, 0, 0, 0},
+            hover_color = {1, 1, 1, 0.08}, press_color = {1, 1, 1, 0.15},
+            tooltip = "TTS Deck Forge: " .. cost .. " loyalty (right click to undo)"})
     end
 end
 
@@ -70,7 +74,7 @@ function onLoad(saved_data)
     for line in description:gmatch("[^\r\n]+") do
         local cost = line:gsub("−", "-"):match("^%s*([+%-]?%d+)%s*:")
         local delta = tonumber(cost)
-        if delta and #deltas < 4 then
+        if delta and #deltas < 6 then
             deltas[#deltas + 1] = delta
         end
     end
