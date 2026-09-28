@@ -701,7 +701,77 @@ async function openDetail(entry){
 }
 
 async function fallbackOne(entry){try{const card=await searchFirst(`!"${entry.name.replace(/"/g,'')}"`);if(!card)throw new Error('No exact card-name match found.');Object.assign(entry,{card,status:'resolved',mode:'fallback',imageStatus:'untested'});addLog(`${entry.name}: manual name fallback selected ${card.set.toUpperCase()} ${card.collector_number}.`,'warn');els.detail.close();renderAll();await runPreflight()}catch(e){toast(e.message)}}
-async function loadPrintings(entry){const box=$('#printingResults');box.innerHTML='<p>Loading available printings…</p>';try{const r=await fetch(`https://api.scryfall.com/cards/search?unique=prints&order=released&dir=desc&q=${encodeURIComponent('!"'+entry.card.name+'"')}`);if(!r.ok)throw new Error(`Printing search failed (${r.status})`);const d=await r.json();box.innerHTML=`<div class="printing-list">${d.data.map(c=>`<button class="print-choice" data-id="${c.id}"><img loading="lazy" src="${esc(providerUrl(imgSource(c),0))}" alt=""><span>${esc(c.set.toUpperCase())} ${esc(c.collector_number)}<br>${esc(c.released_at)}</span></button>`).join('')}</div>`;box.querySelectorAll('.print-choice').forEach((b,i)=>b.onclick=async()=>{entry.card=d.data[i];entry.mode='manual';entry.status='resolved';entry.imageStatus='untested';entry.faceResults={};els.detail.close();addLog(`${entry.name}: printing changed to ${entry.card.set.toUpperCase()} ${entry.card.collector_number}.`,'warn');renderAll();await runPreflight()});}catch(e){box.innerHTML=`<p style="color:var(--red)">${esc(e.message)}</p>`}}
+function printingKind(entry){
+  if(entry.section!=='tokens'||entry.card?.layout==='meld')return '';
+  return entry.card?.layout==='emblem'||/\bEmblem\b/i.test(entry.card?.type_line||'')?'emblem':'token';
+}
+function printingQueries(entry){
+  const kind=printingKind(entry);
+  const name=String(kind?entry.name||entry.card?.name:entry.card?.name||entry.name).replace(/"/g,'');
+  const named=`!"${name}"${kind?` t:${kind}`:''}`;
+  const currentIsKind=kind&&(entry.card?.layout===kind||new RegExp(`\\b${kind}\\b`,'i').test(entry.card?.type_line||''));
+  return currentIsKind&&entry.card?.oracle_id?[`oracleid:${entry.card.oracle_id} t:${kind}`,named]:[named];
+}
+function printingSearchUrl(query){
+  const url=new URL('https://api.scryfall.com/cards/search');
+  url.searchParams.set('unique','prints');
+  url.searchParams.set('order','released');
+  url.searchParams.set('dir','desc');
+  url.searchParams.set('include_extras','true');
+  url.searchParams.set('q',query);
+  return url.href;
+}
+function printingMatches(entry,card){
+  const kind=printingKind(entry);
+  if(!kind)return true;
+  return card.layout===kind||new RegExp(`\\b${kind}\\b`,'i').test(card.type_line||'');
+}
+async function loadPrintings(entry){
+  const box=$('#printingResults');
+  const queries=printingQueries(entry);
+  let queryIndex=0;
+  let nextUrl=printingSearchUrl(queries[0]);
+  const choices=new Map();
+  box.innerHTML='<p>Loading available printings…</p>';
+  async function loadPage(){
+    try{
+      const url=new URL(nextUrl);
+      if(url.protocol!=='https:'||url.hostname!=='api.scryfall.com')throw new Error('Unexpected printing search address.');
+      const r=await fetch(url.href);
+      if(r.status===404&&queryIndex+1<queries.length){nextUrl=printingSearchUrl(queries[++queryIndex]);return loadPage();}
+      if(r.status===404){box.innerHTML='<p>No matching printings found.</p>';return;}
+      if(!r.ok)throw new Error(`Printing search failed (${r.status})`);
+      const data=await r.json();
+      const cards=(data.data||[]).filter(card=>printingMatches(entry,card));
+      if(!cards.length&&!data.has_more&&!choices.size&&queryIndex+1<queries.length){nextUrl=printingSearchUrl(queries[++queryIndex]);return loadPage();}
+      if(!box.querySelector('.printing-list'))box.innerHTML='<div class="printing-list"></div>';
+      const list=box.querySelector('.printing-list');
+      list.insertAdjacentHTML('beforeend',cards.map(card=>{
+        choices.set(card.id,card);
+        return `<button class="print-choice" data-id="${esc(card.id)}"><img loading="lazy" src="${esc(providerUrl(imgSource(card),0))}" alt=""><span>${esc(card.set.toUpperCase())} ${esc(card.collector_number)}<br>${esc(card.released_at)}</span></button>`;
+      }).join(''));
+      if(!list.onclick)list.onclick=async event=>{
+        const button=event.target.closest('.print-choice');
+        const card=button&&choices.get(button.dataset.id);
+        if(!card)return;
+        entry.card=card;entry.mode='manual';entry.status='resolved';entry.imageStatus='untested';entry.faceResults={};
+        els.detail.close();
+        addLog(`${entry.name}: printing changed to ${card.set.toUpperCase()} ${card.collector_number}.`,'warn');
+        renderAll();await runPreflight();
+      };
+      box.querySelector('.load-more-printings')?.remove();
+      nextUrl=data.has_more?data.next_page:null;
+      if(nextUrl){
+        const more=document.createElement('button');
+        more.className='button secondary load-more-printings';
+        more.textContent='Load more printings';
+        more.onclick=()=>{more.disabled=true;more.textContent='Loading…';loadPage();};
+        box.append(more);
+      }else if(!choices.size)box.innerHTML='<p>No matching printings found.</p>';
+    }catch(error){box.querySelector('.load-more-printings')?.remove();box.insertAdjacentHTML('beforeend',`<p style="color:var(--red)">${esc(error.message)}</p>`);}
+  }
+  await loadPage();
+}
 
 function viewJson(){try{const g=generateSavedObject();els.jsonCode.textContent=JSON.stringify(g.save,null,2)+`\n\n/* Validation report\nObjectStates: ${g.report.objectStates}\nMain DeckCustom: ${g.report.mainDeckCount}\nCommanders: ${g.report.commanderCount}\nTokens: ${g.report.tokenCount}\nCustomDeck definitions: ${g.report.customDeckDefinitions}\nDFC states: ${g.report.dfcStateCount}\n*/`;els.jsonDialog.showModal()}catch(e){toast(e.message)}}
 
