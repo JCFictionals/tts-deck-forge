@@ -13,7 +13,12 @@ local deltas = {}
 
 local function changeLoyalty(amount)
     loyalty = math.max(0, loyalty + amount)
-    self.editButton({index = 0, label = tostring(loyalty)})
+    for i, button in ipairs(self.getButtons() or {}) do
+        if button.tooltip == "TTS Deck Forge: current loyalty" then
+            self.editButton({index = button.index or (i - 1), label = tostring(loyalty)})
+            return
+        end
+    end
 end
 
 function loyaltyUp() changeLoyalty(1) end
@@ -24,6 +29,35 @@ function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end
 function loyaltyAbility4() changeLoyalty(deltas[4] or 0) end
 function loyaltyDisplay() end
 
+local function refreshLoyaltyButtons()
+    local buttons = self.getButtons() or {}
+    for i = #buttons, 1, -1 do
+        if tostring(buttons[i].tooltip or ""):find("TTS Deck Forge: ", 1, true) then
+            self.removeButton(buttons[i].index or (i - 1))
+        end
+    end
+    self.createButton({click_function = "loyaltyDisplay", function_owner = self,
+        label = tostring(loyalty), position = {0.43, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 180, height = 150, font_size = 110, scale = {0.18, 0.18, 0.18},
+        color = {0.12, 0.12, 0.12}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: current loyalty"})
+    self.createButton({click_function = "loyaltyDown", function_owner = self,
+        label = "−", position = {0.17, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
+        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: remove one loyalty counter"})
+    self.createButton({click_function = "loyaltyUp", function_owner = self,
+        label = "+", position = {0.69, 0.22, 0.63}, rotation = {0, 0, 0},
+        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
+        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: add one loyalty counter"})
+    for index, delta in ipairs(deltas) do
+        local cost = delta > 0 and ("+" .. delta) or tostring(delta)
+        self.createButton({click_function = "loyaltyAbility" .. index, function_owner = self,
+            label = cost, position = {-0.54, 0.22, -0.38 + (index - 1) * 0.27},
+            rotation = {0, 0, 0}, width = 180, height = 140, font_size = 90,
+            scale = {0.18, 0.18, 0.18}, color = {0.1, 0.1, 0.1},
+            font_color = {1, 1, 1}, tooltip = "TTS Deck Forge: apply " .. cost .. " loyalty"})
+    end
+end
+
 function onLoad(saved_data)
     local description = self.getDescription() or ""
     loyalty = tonumber(description:match("%[b%](%d+)%[/b%]%s*$")) or 0
@@ -33,32 +67,20 @@ function onLoad(saved_data)
             loyalty = tonumber(state.loyalty)
         end
     end
-    self.clearButtons()
-    self.createButton({click_function = "loyaltyDisplay", function_owner = self,
-        label = tostring(loyalty), position = {0.43, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 180, height = 150, font_size = 110, scale = {0.18, 0.18, 0.18},
-        color = {0.12, 0.12, 0.12}, font_color = {1, 1, 1}, tooltip = "Current loyalty"})
-    self.createButton({click_function = "loyaltyDown", function_owner = self,
-        label = "−", position = {0.17, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
-        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "Remove one loyalty counter"})
-    self.createButton({click_function = "loyaltyUp", function_owner = self,
-        label = "+", position = {0.69, 0.22, 0.63}, rotation = {0, 0, 0},
-        width = 130, height = 140, font_size = 100, scale = {0.18, 0.18, 0.18},
-        color = {0.15, 0.15, 0.15}, font_color = {1, 1, 1}, tooltip = "Add one loyalty counter"})
     for line in description:gmatch("[^\r\n]+") do
         local cost = line:gsub("−", "-"):match("^%s*([+%-]?%d+)%s*:")
         local delta = tonumber(cost)
         if delta and #deltas < 4 then
-            local index = #deltas + 1
-            deltas[index] = delta
-            self.createButton({click_function = "loyaltyAbility" .. index, function_owner = self,
-                label = cost, position = {-0.54, 0.22, -0.38 + (index - 1) * 0.27},
-                rotation = {0, 0, 0}, width = 180, height = 140, font_size = 90,
-                scale = {0.18, 0.18, 0.18}, color = {0.1, 0.1, 0.1},
-                font_color = {1, 1, 1}, tooltip = "Apply " .. cost .. " loyalty"})
+            deltas[#deltas + 1] = delta
         end
     end
+    Wait.frames(refreshLoyaltyButtons, 10)
+    Wait.time(refreshLoyaltyButtons, 2.5)
+end
+
+function onDrop()
+    Wait.time(refreshLoyaltyButtons, 0.75)
+    Wait.time(refreshLoyaltyButtons, 2.5)
 end
 
 function onSave()
@@ -69,6 +91,7 @@ end]]
 -- for which the forge did not supply a second playable face.
 local SINGLE_FACE_GUARD = [[
 local previousOnLoad = onLoad
+local previousOnDrop = onDrop
 
 local function removeFalseFlipButton()
     local buttons = self.getButtons() or {}
@@ -89,7 +112,9 @@ function onLoad(saved_data)
 end
 
 function onDrop()
+    if previousOnDrop then previousOnDrop() end
     Wait.frames(removeFalseFlipButton, 3)
+    Wait.time(removeFalseFlipButton, 3)
 end]]
 
 function onLoad(saved_data)

@@ -198,9 +198,15 @@ if (!forgeObject.LuaScript.includes('Memo = spec.memo or ""')) throw new Error("
 if (forgeObject.LuaScript.includes('APIrebuildButtons')) throw new Error("Importer still calls the failing Card Encoder button API.");
 if (!forgeObject.LuaScript.includes('LuaScript = (spec.loyaltyFront and LOYALTY_SCRIPT or "")') || !forgeObject.LuaScript.includes('LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or ""')) throw new Error("Loyalty controls are not attached to the correct card faces.");
 if (!forgeObject.LuaScript.includes('and SINGLE_FACE_GUARD or ""') || !forgeObject.LuaScript.includes('tooltip:find("FLIP TO BACK FACE", 1, true)')) throw new Error("Single-faced cards are missing the unwanted flip-button guard.");
+const loyaltySource = forgeObject.LuaScript.match(/local LOYALTY_SCRIPT = \[\[([\s\S]*?)\]\]/)?.[1];
+if (!loyaltySource || loyaltySource.includes('self.clearButtons()') || !loyaltySource.includes('Wait.time(refreshLoyaltyButtons, 2.5)') || !loyaltySource.includes('button.index or (i - 1)') || !loyaltySource.includes('function onDrop()')) {
+  throw new Error("Planeswalker controls must survive the TTS Encoder rebuilding buttons when a card leaves a deck.");
+}
+if (!forgeObject.LuaScript.includes('if previousOnDrop then previousOnDrop() end') || !forgeObject.LuaScript.includes('Wait.time(removeFalseFlipButton, 3)')) throw new Error("Single-face cleanup must run after other TTS mods update dropped cards.");
 if (!forgeObject.LuaScript.includes('function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end') || !forgeObject.LuaScript.includes('return JSON.encode({loyalty = loyalty})')) throw new Error("Planeswalker loyalty ability and save logic is missing.");
 const siteApp = await readFile(new URL("../dist/app.js", import.meta.url), "utf8");
 if (siteApp.includes('APIrebuildButtons') || !siteApp.includes('LuaScript:cardFaceNeedsLoyalty(card,1)?LOYALTY_LUA:') || !siteApp.includes("LuaScript:loyaltyLua+(fronts.length===1?SINGLE_FACE_GUARD:'')")) throw new Error("Site JSON export does not handle single-faced and planeswalker cards correctly.");
+if (!siteApp.includes('Wait.time(refreshLoyaltyButtons, 2.5)') || !siteApp.includes('if previousOnDrop then previousOnDrop() end')) throw new Error("Site JSON export loses the post-draw planeswalker controls.");
 if (forgeObject.LuaScript.includes("local origin = self.getPosition()")) throw new Error("Importer-relative spawning returned.");
 if (!forgeObject.LuaScript.includes('"openDecklist", -0.31, -0.39, 1400')) throw new Error("Importer button alignment regressed.");
 
