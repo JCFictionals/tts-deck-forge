@@ -87,20 +87,43 @@ end
 function onSave()
     return JSON.encode({loyalty = loyalty})
 end]]
--- Other TTS mods can add a "flip to back face" button for an ordinary card
--- simply because it has card-back artwork. Remove only that button on cards
--- for which the forge did not supply a second playable face.
-local SINGLE_FACE_GUARD = [[
+-- Easy Modules draws the flip-face icon with one clickable circle and three
+-- decorative buttons. The icon can be shown on ordinary cards by its parser.
+-- Use TTS states to remove only that icon; leave the <<< tools menu intact.
+local FACE_GUARD = [[
 local previousOnLoad = onLoad
 local previousOnDrop = onDrop
 
-local function removeFalseFlipButton()
+local function removeFalseFaceIcon()
+    if self.getStateId() ~= -1 then return end
     local buttons = self.getButtons() or {}
+    local centers = {}
+    for _, button in ipairs(buttons) do
+        local action = tostring(button.click_function or "")
+        if action == "ReceiveChangeActiveFace" or action == "ReceiveReimportOrChangeActiveFace" then
+            local p = button.position or {}
+            centers[#centers + 1] = {x = tonumber(p.x or p[1]), z = tonumber(p.z or p[3])}
+        end
+    end
     for i = #buttons, 1, -1 do
-        local tooltip = string.upper(tostring(buttons[i].tooltip or ""))
-        if tooltip:find("FLIP TO BACK FACE", 1, true)
-            or tooltip:find("FLIP TO FRONT FACE", 1, true)
-            or tooltip:find("ACTIVE FACE WITHOUT FLIPPING", 1, true) then
+        local button = buttons[i]
+        local action = tostring(button.click_function or "")
+        local isFaceAction = action == "ReceiveChangeActiveFace"
+            or action == "ReceiveReimportOrChangeActiveFace"
+        local isFaceDecoration = false
+        if action == "DoNothing" then
+            local p = button.position or {}
+            local x, z = tonumber(p.x or p[1]), tonumber(p.z or p[3])
+            for _, center in ipairs(centers) do
+                if x and z and center.x and center.z
+                    and math.abs(x - center.x) < 0.08
+                    and math.abs(z - center.z) < 0.08 then
+                    isFaceDecoration = true
+                    break
+                end
+            end
+        end
+        if isFaceAction or isFaceDecoration or action == "forgeSwitchState" then
             self.removeButton(buttons[i].index or (i - 1))
         end
     end
@@ -108,14 +131,16 @@ end
 
 function onLoad(saved_data)
     if previousOnLoad then previousOnLoad(saved_data) end
-    Wait.frames(removeFalseFlipButton, 20)
-    Wait.time(removeFalseFlipButton, 2)
+    Wait.frames(removeFalseFaceIcon, 20)
+    Wait.time(removeFalseFaceIcon, 3)
+    Wait.time(removeFalseFaceIcon, 5)
 end
 
 function onDrop()
     if previousOnDrop then previousOnDrop() end
-    Wait.frames(removeFalseFlipButton, 3)
-    Wait.time(removeFalseFlipButton, 3)
+    Wait.frames(removeFalseFaceIcon, 3)
+    Wait.time(removeFalseFaceIcon, 3)
+    Wait.time(removeFalseFaceIcon, 5)
 end]]
 
 function onLoad(saved_data)
@@ -400,8 +425,7 @@ function customCardData(spec, key, cardBack, faceUp)
         Tags = spec.tags or {},
         CardID = key * 100,
         CustomDeck = custom,
-        LuaScript = (spec.loyaltyFront and LOYALTY_SCRIPT or "") ..
-            ((not spec.backFaceUrl or spec.backFaceUrl == "") and SINGLE_FACE_GUARD or ""),
+        LuaScript = (spec.loyaltyFront and LOYALTY_SCRIPT or "") .. FACE_GUARD,
         LuaScriptState = ""
     }
     local nextKey = key + 1
@@ -416,7 +440,7 @@ function customCardData(spec, key, cardBack, faceUp)
                 Memo = spec.memo or "",
                 Tags = spec.tags or {},
                 CardID = backKey * 100,
-                LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or "",
+                LuaScript = (spec.loyaltyBack and LOYALTY_SCRIPT or "") .. FACE_GUARD,
                 LuaScriptState = "",
                 CustomDeck = {
                     [backKey] = {
