@@ -64,6 +64,33 @@ end
 function onSave()
     return JSON.encode({loyalty = loyalty})
 end]]
+-- Other TTS mods can add a "flip to back face" button for an ordinary card
+-- simply because it has card-back artwork. Remove only that button on cards
+-- for which the forge did not supply a second playable face.
+local SINGLE_FACE_GUARD = [[
+local previousOnLoad = onLoad
+
+local function removeFalseFlipButton()
+    local buttons = self.getButtons() or {}
+    for i = #buttons, 1, -1 do
+        local tooltip = string.upper(tostring(buttons[i].tooltip or ""))
+        if tooltip:find("FLIP TO BACK FACE", 1, true)
+            or tooltip:find("FLIP TO FRONT FACE", 1, true)
+            or tooltip:find("ACTIVE FACE WITHOUT FLIPPING", 1, true) then
+            self.removeButton(buttons[i].index or (i - 1))
+        end
+    end
+end
+
+function onLoad(saved_data)
+    if previousOnLoad then previousOnLoad(saved_data) end
+    Wait.frames(removeFalseFlipButton, 20)
+    Wait.time(removeFalseFlipButton, 2)
+end
+
+function onDrop()
+    Wait.frames(removeFalseFlipButton, 3)
+end]]
 
 function onLoad(saved_data)
     if saved_data and saved_data ~= "" then
@@ -347,7 +374,8 @@ function customCardData(spec, key, cardBack, faceUp)
         Tags = spec.tags or {},
         CardID = key * 100,
         CustomDeck = custom,
-        LuaScript = spec.loyaltyFront and LOYALTY_SCRIPT or "",
+        LuaScript = (spec.loyaltyFront and LOYALTY_SCRIPT or "") ..
+            ((not spec.backFaceUrl or spec.backFaceUrl == "") and SINGLE_FACE_GUARD or ""),
         LuaScriptState = ""
     }
     local nextKey = key + 1

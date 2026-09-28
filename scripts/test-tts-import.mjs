@@ -12,6 +12,10 @@ const forest = {
   image_uris: { normal: "https://cards.scryfall.io/normal/front/f/o/forest.jpg" }, type_line: "Basic Land — Forest", color_identity: ["G"], legalities: { modern: "legal", oathbreaker: "legal" },
   all_parts: []
 };
+const greatGoblin = {
+  id: "12121212-1212-4212-8212-121212121212", oracle_id: "23232323-2323-4232-8232-232323232323", name: "The Great Goblin", set: "hob", collector_number: "158", layout: "normal",
+  image_uris: { normal: "https://cards.scryfall.io/normal/front/g/o/goblin.jpg" }, type_line: "Legendary Creature — Goblin Noble", all_parts: []
+};
 const oathbreaker = {
   id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", oracle_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", name: "Nissa, Test Walker", set: "tst", collector_number: "1", cmc: 4,
   image_uris: { normal: "https://cards.scryfall.io/normal/front/n/i/nissa.jpg" }, type_line: "Legendary Planeswalker — Nissa", color_identity: ["G"], legalities: { oathbreaker: "legal" }, loyalty: "3", all_parts: []
@@ -46,7 +50,7 @@ globalThis.fetch = async (input, init = {}) => {
   const url = String(input);
   if (url === "https://api.scryfall.com/cards/collection") {
     const requested = JSON.parse(init.body).identifiers;
-    const data = requested.map((identifier) => identifier.name === "Forest" ? forest : identifier.name === oathbreaker.name ? oathbreaker : identifier.name === signature.name ? signature : identifier.set === "emn" ? gisela : identifier.set === "stx" ? modalWalker : commander);
+    const data = requested.map((identifier) => identifier.name === "Forest" ? forest : identifier.name === greatGoblin.name ? greatGoblin : identifier.name === oathbreaker.name ? oathbreaker : identifier.name === signature.name ? signature : identifier.set === "emn" ? gisela : identifier.set === "stx" ? modalWalker : commander);
     return new Response(JSON.stringify({ data, not_found: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
   }
   if (url === commander.all_parts[0].uri) return new Response(JSON.stringify(elemental), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -104,8 +108,16 @@ const facesForCode = servedApp.match(/function facesFor\(entry\)\{[\s\S]*?\n\}/)
 if (!imgSourceCode || !facesForCode) throw new Error("Browser card face helpers are missing.");
 const browserFaces = Function("providerUrl", `${imgSourceCode}\n${facesForCode}\nreturn facesFor;`)((url) => url);
 const splitCard = { image_uris: forest.image_uris, card_faces: [{ name: "First Half" }, { name: "Second Half" }] };
-if (browserFaces({ card: forest }).length !== 1 || browserFaces({ card: splitCard }).length !== 1 || browserFaces({ card: modalWalker }).length !== 2) {
+if (browserFaces({ card: forest }).length !== 1 || browserFaces({ card: greatGoblin }).length !== 1 || browserFaces({ card: splitCard }).length !== 1 || browserFaces({ card: modalWalker }).length !== 2) {
   throw new Error("Browser export assigned a back-face state to a card without a back image, or lost a real double face.");
+}
+const goblinResult = await worker.fetch(new Request("https://local/api/tts-import", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ decklist: "Mainboard\n1x The Great Goblin\n59x Forest", includeTokens: false })
+}));
+const goblinPlan = await goblinResult.json();
+if (!goblinPlan.ok || goblinPlan.cardPlan.library.find(spec => spec.nickname.startsWith(greatGoblin.name))?.backFaceUrl) {
+  throw new Error("The Great Goblin must have only its printed front face.");
 }
 if (!servedApp.includes("function fixDropboxCardBackLink") || servedApp.includes("url.hostname='dl.dropboxusercontent.com'")) {
   throw new Error("The served app still contains stale Dropbox card back handling.");
@@ -184,10 +196,11 @@ if (forgeObject.LuaScript.includes('type(hand.position) ~= "table"')) throw new 
 if (!forgeObject.LuaScript.includes("local coordsOk, px, pz = pcall")) throw new Error("Safe TTS Vector handling is missing.");
 if (!forgeObject.LuaScript.includes('Memo = spec.memo or ""')) throw new Error("Card token metadata is not written into TTS Memo.");
 if (forgeObject.LuaScript.includes('APIrebuildButtons')) throw new Error("Importer still calls the failing Card Encoder button API.");
-if (!forgeObject.LuaScript.includes('LuaScript = spec.loyaltyFront and LOYALTY_SCRIPT or ""') || !forgeObject.LuaScript.includes('LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or ""')) throw new Error("Loyalty controls are not attached to the correct card faces.");
+if (!forgeObject.LuaScript.includes('LuaScript = (spec.loyaltyFront and LOYALTY_SCRIPT or "")') || !forgeObject.LuaScript.includes('LuaScript = spec.loyaltyBack and LOYALTY_SCRIPT or ""')) throw new Error("Loyalty controls are not attached to the correct card faces.");
+if (!forgeObject.LuaScript.includes('and SINGLE_FACE_GUARD or ""') || !forgeObject.LuaScript.includes('tooltip:find("FLIP TO BACK FACE", 1, true)')) throw new Error("Single-faced cards are missing the unwanted flip-button guard.");
 if (!forgeObject.LuaScript.includes('function loyaltyAbility3() changeLoyalty(deltas[3] or 0) end') || !forgeObject.LuaScript.includes('return JSON.encode({loyalty = loyalty})')) throw new Error("Planeswalker loyalty ability and save logic is missing.");
 const siteApp = await readFile(new URL("../dist/app.js", import.meta.url), "utf8");
-if (siteApp.includes('APIrebuildButtons') || !siteApp.includes('LuaScript:cardFaceNeedsLoyalty(card,1)?LOYALTY_LUA:')) throw new Error("Site JSON export does not attach loyalty controls to the right face.");
+if (siteApp.includes('APIrebuildButtons') || !siteApp.includes('LuaScript:cardFaceNeedsLoyalty(card,1)?LOYALTY_LUA:') || !siteApp.includes("LuaScript:loyaltyLua+(fronts.length===1?SINGLE_FACE_GUARD:'')")) throw new Error("Site JSON export does not handle single-faced and planeswalker cards correctly.");
 if (forgeObject.LuaScript.includes("local origin = self.getPosition()")) throw new Error("Importer-relative spawning returned.");
 if (!forgeObject.LuaScript.includes('"openDecklist", -0.31, -0.39, 1400')) throw new Error("Importer button alignment regressed.");
 
